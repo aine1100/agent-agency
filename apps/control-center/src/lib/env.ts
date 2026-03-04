@@ -15,6 +15,11 @@ const envSchema = z.object({
   MOCK_MODE: z.string().default("true"),
   RUNNER_SCRIPT_PATH: z.string().default("../../tools/run-nexus-micro.ps1"),
   RUN_OUTPUT_ROOT: z.string().default("../../.nexus-runs"),
+  SMTP_HOST: z.string().optional(),
+  SMTP_PORT: z.string().optional(),
+  SMTP_USER: z.string().optional(),
+  SMTP_PASS: z.string().optional(),
+  OPENAI_API_KEY: z.string().optional(),
 });
 
 const parsed = envSchema.safeParse(process.env);

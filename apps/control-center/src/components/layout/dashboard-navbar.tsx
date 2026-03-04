@@ -5,7 +5,9 @@ import { usePathname } from "next/navigation";
 import Link from "next/link";
 import { cn } from "@/lib/utils";
 
-export function DashboardNavbar() {
+import { AuthSession } from "@/lib/auth";
+
+export function DashboardNavbar({ session }: { session: AuthSession }) {
     const pathname = usePathname();
     const segments = pathname.split("/").filter(Boolean);
 
@@ -64,7 +66,7 @@ export function DashboardNavbar() {
 
                 {/* Profile / System */}
                 <button className="flex h-8 w-8 items-center justify-center rounded-xl bg-brand-purple text-xs font-semibold text-white shadow-sm transition hover:opacity-90">
-                    A
+                    {session?.user?.name?.[0]?.toUpperCase() || session?.user?.email?.[0]?.toUpperCase() || "U"}
                 </button>
             </div>
         </header>

@@ -17,13 +17,13 @@ export default async function DashboardLayout({
     <div className="flex h-screen bg-background text-foreground">
       {/* Sidebar Container */}
       <div className="hidden border-r border-border lg:block">
-        <DashboardSidebar />
+        <DashboardSidebar session={session} />
       </div>
 
       {/* Main Content Area */}
       <div className="flex flex-1 flex-col overflow-hidden">
         {/* Top Navbar */}
-        <DashboardNavbar />
+        <DashboardNavbar session={session} />
 
         {/* Scrollable Content */}
         <main className="flex-1 overflow-y-auto bg-background/50 p-6">

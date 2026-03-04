@@ -4,11 +4,8 @@ import { nextCookies } from "better-auth/next-js";
 import { headers } from "next/headers";
 import { env } from "@/lib/env";
 import { db } from "@/lib/db";
+import { sendEmail } from "@/lib/email";
 import * as schema from "@/lib/db/schema";
-
-const hasGoogleOAuth = Boolean(
-  env.GOOGLE_CLIENT_ID && env.GOOGLE_CLIENT_SECRET,
-);
 
 export const auth = betterAuth({
   secret: env.BETTER_AUTH_SECRET,
@@ -19,7 +16,15 @@ export const auth = betterAuth({
   }),
   emailAndPassword: {
     enabled: true,
-    autoSignIn: true,
+    autoSignIn: false,
+    sendResetPassword: async ({ user, url }) => {
+      await sendEmail({
+        to: user.email,
+        subject: "Reset your password",
+        text: `Click the link to reset your password: ${url}`,
+        html: `<p>Click the link to reset your password: <a href="${url}">${url}</a></p>`,
+      });
+    },
   },
   user: {
     additionalFields: {
@@ -30,14 +35,6 @@ export const auth = betterAuth({
       },
     },
   },
-  socialProviders: hasGoogleOAuth
-    ? {
-        google: {
-          clientId: env.GOOGLE_CLIENT_ID!,
-          clientSecret: env.GOOGLE_CLIENT_SECRET!,
-        },
-      }
-    : undefined,
   plugins: [nextCookies()],
 });
 

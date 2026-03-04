@@ -15,6 +15,9 @@ import {
   Sparkles
 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { AuthSession } from "@/lib/auth";
+import { authClient } from "@/lib/auth-client";
+import { useRouter } from "next/navigation";
 
 const sections = [
   {
@@ -35,8 +38,19 @@ const sections = [
   }
 ];
 
-export function DashboardSidebar() {
+export function DashboardSidebar({ session }: { session: AuthSession }) {
   const pathname = usePathname();
+  const router = useRouter();
+
+  const handleSignOut = async () => {
+    await authClient.signOut({
+      fetchOptions: {
+        onSuccess: () => {
+          router.push("/sign-in");
+        },
+      },
+    });
+  };
 
   return (
     <aside className="flex h-full w-64 flex-col bg-card">
@@ -101,11 +115,28 @@ export function DashboardSidebar() {
           <HelpCircle className="h-4 w-4" />
           Support Help
         </button>
-        <button className="flex w-full items-center gap-3 rounded-xl px-3 py-2 text-sm font-medium text-muted hover:bg-white/5 hover:text-status-red transition-all">
+        <button 
+          onClick={handleSignOut}
+          className="flex w-full items-center gap-3 rounded-xl px-3 py-2 text-sm font-medium text-muted hover:bg-white/5 hover:text-status-red transition-all"
+        >
           <LogOut className="h-4 w-4" />
           Sign Out
         </button>
       </div>
+
+      {session?.user && (
+        <div className="p-4 border-t border-border bg-brand-purple/[0.02]">
+          <div className="flex items-center gap-3">
+            <div className="flex h-8 w-8 items-center justify-center rounded-xl bg-brand-purple/10 text-brand-purple text-xs font-semibold">
+              {session.user.name?.[0]?.toUpperCase() || session.user.email[0].toUpperCase()}
+            </div>
+            <div className="flex flex-col min-w-0">
+              <span className="text-xs font-semibold text-foreground truncate">{session.user.name || 'User'}</span>
+              <span className="text-[10px] text-muted truncate">{session.user.email}</span>
+            </div>
+          </div>
+        </div>
+      )}
     </aside>
   );
 }

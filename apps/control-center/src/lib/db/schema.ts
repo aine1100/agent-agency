@@ -149,12 +149,49 @@ export const auditLog = pgTable("audit_log", {
 	userIdCreatedAtIdx: index("audit_log_userId_createdAt_idx").on(table.userId, table.createdAt),
 }]);
 
+export const conversation = pgTable("conversation", {
+	id: text("id").primaryKey(),
+	userId: text("userId").notNull().references(() => user.id, { onDelete: "cascade" }),
+	title: text("title").notNull(),
+	createdAt: timestamp("createdAt").defaultNow().notNull(),
+	updatedAt: timestamp("updatedAt").notNull(),
+}, (table) => [{
+	userIdIdx: index("conversation_userId_idx").on(table.userId),
+}]);
+
+export const chatMessage = pgTable("chat_message", {
+	id: text("id").primaryKey(),
+	conversationId: text("conversationId").notNull().references(() => conversation.id, { onDelete: "cascade" }),
+	role: text("role", { enum: ["user", "assistant", "system"] }).notNull(),
+	content: text("content").notNull(),
+	metadata: jsonb("metadata"),
+	createdAt: timestamp("createdAt").defaultNow().notNull(),
+}, (table) => [{
+	conversationIdIdx: index("chat_message_conversationId_idx").on(table.conversationId),
+}]);
+
 // Relations
 export const userRelations = relations(user, ({ many }) => ({
 	sessions: many(session),
 	accounts: many(account),
 	runs: many(run),
 	auditLogs: many(auditLog),
+	conversations: many(conversation),
+}));
+
+export const conversationRelations = relations(conversation, ({ one, many }) => ({
+	user: one(user, {
+		fields: [conversation.userId],
+		references: [user.id],
+	}),
+	messages: many(chatMessage),
+}));
+
+export const chatMessageRelations = relations(chatMessage, ({ one }) => ({
+	conversation: one(conversation, {
+		fields: [chatMessage.conversationId],
+		references: [conversation.id],
+	}),
 }));
 
 export const sessionRelations = relations(session, ({ one }) => ({
