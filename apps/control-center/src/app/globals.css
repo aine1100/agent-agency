@@ -1,0 +1,77 @@
+@import url('https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600&display=swap');
+@import "tailwindcss";
+
+:root {
+  --background: #f8f9fa;
+  --foreground: #1a1a1a;
+  --card: #ffffff;
+  --border: #e9ecef;
+  --muted: #6c757d;
+  
+  --brand-purple: #7c3aed;
+  --status-green: #10b981;
+  --status-orange: #f59e0b;
+  --status-red: #ef4444;
+}
+
+.dark {
+  --background: #000000;
+  --foreground: #ffffff;
+  --card: #0a0a0a;
+  --border: #1a1a1a;
+  --muted: #888888;
+  
+  --brand-purple: #8b5cf6;
+  --status-green: #10b981;
+  --status-orange: #f59e0b;
+  --status-red: #ef4444;
+}
+
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-card: var(--card);
+  --color-border: var(--border);
+  --color-muted: var(--muted);
+  --color-brand-purple: var(--brand-purple);
+  --color-status-green: var(--status-green);
+  --color-status-orange: var(--status-orange);
+  --color-status-red: var(--status-red);
+  --font-sans: 'Montserrat', ui-sans-serif, system-ui, sans-serif;
+}
+
+body {
+  background: var(--background);
+  color: var(--foreground);
+  font-family: 'Montserrat', sans-serif;
+  min-height: 100vh;
+  -webkit-font-smoothing: antialiased;
+  line-height: 1.5;
+}
+
+/* Modern Layout Utilities */
+.glass {
+  background: var(--card);
+  backdrop-filter: blur(12px);
+  border: 1px solid var(--border);
+}
+
+.card-gradient {
+  background: var(--card);
+  border: 1px solid var(--border);
+}
+
+/* Custom Scrollbar */
+::-webkit-scrollbar {
+  width: 3px;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+::-webkit-scrollbar-thumb {
+  background: var(--border);
+  border-radius: 10px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: var(--brand-purple);
+}
