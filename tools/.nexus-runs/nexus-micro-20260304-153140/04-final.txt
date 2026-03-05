@@ -1,0 +1,4 @@
+AGENT=C:\Users\aine\Downloads\codes\agency-agents\tools\run-agent.ps1
+MODEL=gpt-4o-mini
+TASK_FIRST_LINE=Final integration/release assessment for NEXUS-Micro objective:
+- bullet includes todo app

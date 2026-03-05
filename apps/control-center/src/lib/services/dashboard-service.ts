@@ -1,4 +1,7 @@
-import { History, Layers, TerminalSquare, TrendingUp } from "lucide-react";
+import { History, Layers, TerminalSquare, TrendingUp, Sparkles } from "lucide-react";
+import { db } from "@/lib/db";
+import * as schema from "@/lib/db/schema";
+import { eq, desc, asc } from "drizzle-orm";
 
 export type DashboardStats = {
     label: string;
@@ -50,6 +53,7 @@ export type RunStep = {
 
 export type RunLog = {
     id: string;
+    stepKey: string | null;
     level: "info" | "warn" | "error";
     message: string;
     createdAt: Date;
@@ -57,12 +61,13 @@ export type RunLog = {
 
 export type Artifact = {
     id: string;
+    stepKey: string | null;
     path: string;
     kind: string;
     size: number;
 };
 
-export async function getDashboardData() {
+export async function getDashboardData(userId: string) {
     const stats: DashboardStats[] = [
         { label: "Active Workflows", value: 12, icon: Layers, color: "text-cyan-400" },
         { label: "Total Runs", value: 148, icon: History, color: "text-blue-400" },
@@ -71,87 +76,109 @@ export async function getDashboardData() {
     ];
 
     const recentRuns = (await getRuns()).slice(0, 5);
+    const recentActivity = await getRecentAIActivity(userId);
 
     return {
         stats,
         recentRuns,
+        recentActivity,
     };
+}
+
+export async function getRecentAIActivity(userId: string) {
+    const activities = await db.query.conversation.findMany({
+        where: eq(schema.conversation.userId, userId),
+        orderBy: [desc(schema.conversation.updatedAt)],
+        limit: 3,
+        with: {
+            messages: {
+                orderBy: [desc(schema.chatMessage.createdAt)],
+                limit: 1,
+            }
+        }
+    });
+
+    return activities.map(a => ({
+        id: a.id,
+        title: a.title,
+        lastMessage: a.messages[0]?.content || "No messages yet",
+        updatedAt: a.updatedAt,
+    }));
 }
 
 export async function getWorkflows(): Promise<Workflow[]> {
-    const base = {
-        slug: "workflow-slug",
-        objectiveTemplate: "Task: {{objective}}",
-        defaultDomainAgent: "Nexus",
-        defaultProvider: "OPENAI" as const,
-        defaultModel: "gpt-4o-mini",
-        includeMarketing: true,
-        tags: ["automation"],
-        createdAt: new Date(),
-        updatedAt: new Date(),
-    };
-
-    return [
-        { ...base, id: "wf_1", name: "Enterprise Lead Gen", slug: "lead-gen", description: "Automated multi-step agent pipeline for lead qualification", active: true },
-        { ...base, id: "wf_2", name: "Customer Support Agent", slug: "support", description: "First-line response agent with RAG capabilities", active: true },
-        { ...base, id: "wf_3", name: "Social Media Manager", slug: "social", description: "Content creator and scheduler for multiple platforms", active: false },
-        { ...base, id: "wf_4", name: "Market Analysis", slug: "market", description: "Real-time competitor tracking and reporting", active: true },
-        { ...base, id: "wf_5", name: "Onboarding Specialist", slug: "onboarding", description: "Customer success automation for new signups", active: true },
-    ];
+    const workflows = await db.query.workflow.findMany({
+        orderBy: [desc(schema.workflow.createdAt)],
+    });
+    return workflows as Workflow[];
 }
 
 export async function getRuns(): Promise<Run[]> {
-    return [
-        {
-            id: "run_12345678",
-            workflowName: "Enterprise Lead Gen",
-            status: "COMPLETED",
-            createdAt: new Date(Date.now() - 1000 * 60 * 30),
-            startedBy: { name: "Admin", email: "admin@agency.ai" },
-        },
-        {
-            id: "run_87654321",
-            workflowName: "Customer Support Agent",
-            status: "RUNNING",
-            createdAt: new Date(Date.now() - 1000 * 60 * 5),
-            startedBy: { name: "System", email: "system@agency.ai" },
-        },
-        {
-            id: "run_11223344",
-            workflowName: "Content Strategy Bot",
-            status: "FAILED",
-            createdAt: new Date(Date.now() - 1000 * 60 * 60 * 2),
-            startedBy: { name: "Admin", email: "admin@agency.ai" },
-        },
-        {
-            id: "run_44556677",
-            workflowName: "Market Analysis",
-            status: "COMPLETED",
-            createdAt: new Date(Date.now() - 1000 * 60 * 60 * 5),
-            startedBy: { name: "Operator", email: "op@agency.ai" },
-        },
-    ];
+    const runs = await db.query.run.findMany({
+        orderBy: [desc(schema.run.createdAt)],
+        with: {
+            workflow: {
+                columns: {
+                    name: true,
+                }
+            },
+            startedBy: {
+                columns: {
+                    name: true,
+                    email: true,
+                }
+            }
+        }
+    });
+
+    return runs.map(r => ({
+        id: r.id,
+        workflowName: r.workflow?.name || "Unknown Workflow",
+        status: r.status as Run["status"],
+        createdAt: r.createdAt,
+        startedBy: r.startedBy ? { name: r.startedBy.name || "Unknown", email: r.startedBy.email || "" } : null,
+    }));
 }
 
 export async function getRunDetail(id: string) {
-    const workflows = await getWorkflows();
-    const run = (await getRuns()).find(r => r.id === id) || (await getRuns())[0];
+    const run = await db.query.run.findFirst({
+        where: eq(schema.run.id, id),
+        with: {
+            workflow: true,
+            steps: {
+                orderBy: [asc(schema.runStep.order)],
+            },
+            logs: {
+                orderBy: [asc(schema.runLog.createdAt)],
+            },
+            artifacts: {
+                orderBy: [desc(schema.artifact.createdAt)],
+            },
+            startedBy: {
+                columns: {
+                    name: true,
+                    email: true,
+                }
+            }
+        }
+    });
+
+    if (!run) return null;
 
     return {
         ...run,
-        workflow: workflows.find(wf => wf.name === run.workflowName) || workflows[0],
-        steps: [
-            { id: "s1", key: "orchestrator", title: "Orchestrator", status: "PASSED", startedAt: new Date() },
-            { id: "s2", key: "specialist", title: "Specialist", status: "RUNNING", startedAt: new Date() },
-            { id: "s3", key: "qa", title: "QA", status: "PENDING" },
-        ] as RunStep[],
-        logs: [
-            { id: "l1", level: "info", message: "Starting pipeline execution...", createdAt: new Date() },
-            { id: "l2", level: "info", message: "Orchestrator plan generated.", createdAt: new Date() },
-        ] as RunLog[],
-        artifacts: [
-            { id: "a1", path: "SUMMARY.md", kind: "markdown", size: 1024 },
-        ] as Artifact[],
+        workflowName: run.workflow?.name || "Unknown Workflow",
+        status: run.status as Run["status"],
+        startedBy: run.startedBy ? { name: run.startedBy.name || "Unknown", email: run.startedBy.email || "" } : null,
+        steps: run.steps.map(s => ({
+            ...s,
+            status: s.status as RunStep["status"],
+            startedAt: s.startedAt || undefined,
+            completedAt: s.completedAt || undefined,
+            details: s.details || undefined,
+        })) as RunStep[],
+        logs: run.logs as RunLog[],
+        artifacts: run.artifacts as Artifact[],
     };
 }
 
@@ -164,12 +191,12 @@ export async function getTeamMembers() {
 }
 
 export async function getSettingsSections() {
-  return [
-    { label: "Profile", description: "Manage your personal information and preferences.", icon: "Settings" },
-    { label: "Notifications", description: "Configure how you want to be alerted.", icon: "Bell" },
-    { label: "Security", description: "Update your password and 2FA settings.", icon: "Shield" },
-    { label: "API Keys", description: "Manage access keys for integration.", icon: "Key" },
-    { label: "Database", description: "View connection status and statistics.", icon: "Database" },
-    { label: "Engine", description: "Configure global runner parameters.", icon: "Cpu" },
-  ];
+    return [
+        { label: "Profile", description: "Manage your personal information and preferences.", icon: "Settings" },
+        { label: "Notifications", description: "Configure how you want to be alerted.", icon: "Bell" },
+        { label: "Security", description: "Update your password and 2FA settings.", icon: "Shield" },
+        { label: "API Keys", description: "Manage access keys for integration.", icon: "Key" },
+        { label: "Database", description: "View connection status and statistics.", icon: "Database" },
+        { label: "Engine", description: "Configure global runner parameters.", icon: "Cpu" },
+    ];
 }

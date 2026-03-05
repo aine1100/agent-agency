@@ -1,0 +1,13 @@
+[DRY_RUN] 1) Orchestrator
+Agent: C:\Users\aine\Downloads\codes\agency-agents\tools\run-agent.ps1
+Task Preview:
+Activate NEXUS-Micro mode.
+
+Objective:
+smoke
+
+Required output:
+1. Execution plan with clear phases
+2. Risk checklist
+3. Concrete handoff instructions for the specialist agent
+4. Success criteria for QA

@@ -1,4 +1,5 @@
 import { getDashboardData } from "@/lib/services/dashboard-service";
+import { getServerSession } from "@/lib/auth";
 import { 
   Layers, 
   Search, 
@@ -7,14 +8,19 @@ import {
   MoreHorizontal, 
   ChevronDown,
   ArrowUpRight,
-  ArrowDownRight
+  ArrowDownRight,
+  Sparkles,
+  MessageSquare,
+  History as HistoryIcon,
+  ChevronRight
 } from "lucide-react";
 import Link from "next/link";
 import { formatDate } from "@/lib/utils";
 import { cn } from "@/lib/utils";
 
 export default async function DashboardPage() {
-  const { stats, recentRuns } = await getDashboardData();
+  const session = await getServerSession();
+  const { stats, recentRuns, recentActivity } = await getDashboardData(session?.user?.id || "");
 
   return (
     <div className="space-y-8 pb-12">
@@ -54,6 +60,56 @@ export default async function DashboardPage() {
           );
         })}
       </div>
+
+      {/* Recent AI Activity Section */}
+      <section className="space-y-4">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <Sparkles className="h-5 w-5 text-brand-purple" />
+            <h2 className="text-xl font-semibold tracking-tight text-foreground">Recent AI Activity</h2>
+          </div>
+          <Link 
+            href="/dashboard/chat" 
+            className="text-[10px] font-bold text-brand-purple uppercase tracking-wider hover:opacity-80 transition-all flex items-center gap-1"
+          >
+            Launch Orchestrator <ChevronRight className="h-3 w-3" />
+          </Link>
+        </div>
+        
+        <div className="grid gap-4 md:grid-cols-3">
+          {recentActivity.map((activity) => (
+            <Link 
+              key={activity.id}
+              href={`/dashboard/chat?id=${activity.id}`}
+              className="group relative overflow-hidden rounded-2xl border border-border bg-card/50 p-4 transition-all hover:border-brand-purple/20 shadow-sm"
+            >
+              <div className="flex flex-col gap-2">
+                <div className="flex items-center justify-between">
+                  <span className="text-xs font-bold text-foreground truncate max-w-[150px] group-hover:text-brand-purple transition-colors">
+                    {activity.title}
+                  </span>
+                  <span className="text-[10px] font-medium text-muted">
+                    {formatDate(activity.updatedAt)}
+                  </span>
+                </div>
+                <p className="text-[10px] text-muted line-clamp-2 font-medium leading-relaxed opacity-70">
+                  {activity.lastMessage.replace(/\[Nexus-Micro Orchestration Started: #([a-f0-9]{8})\]/g, "").trim()}
+                </p>
+                <div className="pt-2 flex items-center gap-1 text-[9px] font-bold text-brand-purple/60 uppercase tracking-tighter">
+                  <MessageSquare className="h-2.5 w-2.5" />
+                  Continue Session
+                </div>
+              </div>
+            </Link>
+          ))}
+          {recentActivity.length === 0 && (
+            <div className="col-span-full rounded-2xl border border-dashed border-border p-8 text-center bg-card/20">
+              <p className="text-sm text-muted font-medium italic">No recent AI sessions found.</p>
+              <Link href="/dashboard/chat" className="mt-2 inline-block text-xs font-bold text-brand-purple">Start one now</Link>
+            </div>
+          )}
+        </div>
+      </section>
 
       {/* Main Content Section */}
       <section className="rounded-[2.5rem] border border-border bg-card overflow-hidden shadow-sm">
@@ -113,7 +169,7 @@ export default async function DashboardPage() {
                   <td className="px-6 py-5">
                     <div className="flex flex-col gap-1.5">
                       <span className="font-semibold text-foreground">{run.workflowName}</span>
-                      <span className="text-[10px] font-mono text-muted">#{run.id.split('_')[1].slice(0, 10)}</span>
+                      <span className="text-[10px] font-mono text-muted">#{run.id.slice(0, 8)}</span>
                     </div>
                   </td>
                   <td className="px-6 py-5">

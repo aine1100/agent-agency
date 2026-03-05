@@ -1,0 +1,28 @@
+[DRY_RUN] 2) Specialist
+Agent: C:\Users\aine\Downloads\codes\agency-agents\engineering\engineering-backend-architect.md
+Task Preview:
+NEXUS-Micro context:
+
+Objective:
+Fix auth token refresh failures on login and verify no regressions.
+
+Orchestrator handoff:
+[DRY_RUN] 1) Orchestrator
+Agent: C:\Users\aine\Downloads\codes\agency-agents\specialized\agents-orchestrator.md
+Task Preview:
+Activate NEXUS-Micro mode.
+
+Objective:
+Fix auth token refresh failures on login and verify no regressions.
+
+Required output:
+1. Execution plan with clear phases
+2. Risk checklist
+3. Concrete handoff instructions for the specialist agent
+4. Success criteria for QA
+
+Execute as the specialist agent and produce:
+1. Implementation approach
+2. Concrete actions/commands
+3. Deliverable output
+4. Known limitations or assumptions

@@ -1,0 +1,161 @@
+﻿<<<FILE:index.html>>>
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Restaurant Management Todo App</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <div id="root"></div>
+    <script src="app.js" type="module"></script>
+</body>
+</html>
+<<<END FILE>>>
+<<<FILE:style.css>>>
+body {
+    font-family: Arial, sans-serif;
+    background-color: #f4f4f4;
+    margin: 0;
+    padding: 20px;
+}
+
+h1 {
+    text-align: center;
+}
+
+.container {
+    max-width: 600px;
+    margin: 0 auto;
+    background: white;
+    box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+    padding: 20px;
+    border-radius: 5px;
+}
+
+.task {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 10px;
+    border-bottom: 1px solid #ddd;
+}
+
+.task.completed {
+    text-decoration: line-through;
+    color: #888;
+}
+
+button {
+    background: #ff6b6b;
+    color: white;
+    border: none;
+    border-radius: 5px;
+    padding: 5px 10px;
+    cursor: pointer;
+}
+
+button:hover {
+    background: #ff4949;
+}
+
+input[type="text"] {
+    width: 100%;
+    padding: 10px;
+    margin-bottom: 10px;
+    border: 1px solid #ddd;
+    border-radius: 5px;
+}
+<<<END FILE>>>
+<<<FILE:app.js>>>
+import React, { useEffect, useState } from 'react';
+import ReactDOM from 'react-dom';
+
+const App = () => {
+    const [tasks, setTasks] = useState([]);
+    const [taskInput, setTaskInput] = useState('');
+
+    useEffect(() => {
+        const storedTasks = JSON.parse(localStorage.getItem('tasks')) || [];
+        setTasks(storedTasks);
+    }, []);
+
+    useEffect(() => {
+        localStorage.setItem('tasks', JSON.stringify(tasks));
+    }, [tasks]);
+
+    const addTask = () => {
+        if (taskInput.trim()) {
+            setTasks([...tasks, { text: taskInput, completed: false }]);
+            setTaskInput('');
+        }
+    };
+
+    const toggleTask = index => {
+        const newTasks = [...tasks];
+        newTasks[index].completed = !newTasks[index].completed;
+        setTasks(newTasks);
+    };
+
+    const deleteTask = index => {
+        const newTasks = tasks.filter((_, i) => i !== index);
+        setTasks(newTasks);
+    };
+
+    return (
+        <div className="container">
+            <h1>Restaurant Management Tasks</h1>
+            <input
+                type="text"
+                value={taskInput}
+                onChange={e => setTaskInput(e.target.value)}
+                placeholder="Add a new task..."
+            />
+            <button onClick={addTask}>Add Task</button>
+            <div>
+                {tasks.map((task, index) => (
+                    <div key={index} className={`task ${task.completed ? 'completed' : ''}`}>
+                        <span onClick={() => toggleTask(index)}>{task.text}</span>
+                        <button onClick={() => deleteTask(index)}>Delete</button>
+                    </div>
+                ))}
+            </div>
+        </div>
+    );
+};
+
+ReactDOM.render(<App />, document.getElementById('root'));
+<<<END FILE>>>
+<<<FILE:README.md>>>
+# Restaurant Management Todo App
+
+This is a simple React.js application for managing tasks in a restaurant management setting.
+
+## Features
+- Add tasks with text
+- List and display all tasks
+- Toggle tasks as complete/incomplete
+- Delete tasks
+- Persist tasks in localStorage
+
+## Getting Started
+
+1. Clone the repository.
+2. Navigate to the project directory.
+3. Open `index.html` in your browser to run the app.
+
+## Technologies Used
+- HTML
+- CSS
+- JavaScript (React)
+
+## License
+This project is licensed under the MIT License.
+<<<END FILE>>>
+<<<RUN>>>
+To run the app locally:
+1. Open `index.html` in your web browser.
+2. Use the interface to add, toggle, and delete tasks.
+3. Tasks will be persisted in your local storage.
+<<<END RUN>>>

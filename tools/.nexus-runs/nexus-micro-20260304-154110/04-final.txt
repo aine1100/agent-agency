@@ -1,0 +1,57 @@
+﻿[DRY_RUN] 4) Reality Checker
+Agent: C:\Users\aine\Downloads\codes\agency-agents\testing\testing-reality-checker.md
+Task Preview:
+Final release assessment for objective:
+make a simple todo app
+
+Generated app directory:
+.\.nexus-runs\nexus-micro-20260304-154110\app
+
+Generated files:
+
+
+Orchestrator:
+[DRY_RUN] 1) Orchestrator
+Agent: C:\Users\aine\Downloads\codes\agency-agents\specialized\agents-orchestrator.md
+Task Preview:
+Activate NEXUS-Micro mode.
+
+Objective:
+make a simple todo app
+
+Required output:
+1. Execution plan with clear phases
+2. Risk checklist
+3. Concrete handoff instructions for the specialist agent
+4. Success criteria for QA
+
+Specialist:
+[DRY_RUN] 2) Specialist
+Agent: C:\Users\aine\Downloads\codes\agency-agents\engineering\engineering-frontend-developer.md
+Task Preview:
+You are the implementation specialist for this objective:
+make a simple todo app
+
+Orchestrator handoff:
+[DRY_RUN] 1) Orchestrator
+Agent: C:\Users\aine\Downloads\codes\agency-agents\specialized\agents-orchestrator.md
+Task Preview:
+Activate
+
+...[truncated]...
+
+..
+<<<END FILE>>>
+<<<RUN>>>
+Commands to run/test the app locally.
+<<<END RUN>>>
+
+No markdown fences. No explanations outside these blocks.
+
+Return:
+- PASS or FAIL
+- Evidence-based findings
+- Exact fixes required if FAIL
+
+Return final verdict: READY or NEEDS WORK.
+Include top blockers and next steps.

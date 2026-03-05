@@ -1,0 +1,98 @@
+Activating NEXUS-Micro mode for simple todo app project.
+
+---
+
+# 1. Execution Plan with Clear Phases
+
+### Phase 1: Project Analysis & Planning
+- Define precise specification for the simple todo app (core features: add, delete, complete tasks).
+- Spawn **project-manager-senior** to create a focused, no-frills task list strictly matching core requirements.
+- Output: project-tasks/simple-todo-tasklist.md
+
+### Phase 2: Technical Architecture
+- Spawn **ArchitectUX** to design minimal technical architecture.
+- Deliverables:
+  - Frontend structure (likely React or vanilla JS SPA)
+  - Minimal backend (optional: localStorage or simple API sketch)
+  - UX wireframe for main UI elements: task input, task list, task controls.
+- Output: project-docs/simple-todo-architecture.md, initial UX wireframes.
+
+### Phase 3: Development-QA Continuous Loop
+- Parse task list.
+- For each task, spawn appropriate developer agent (likely **Frontend Developer**).
+- After implementation, spawn **EvidenceQA** for task-specific validation with screenshots.
+- Enforce strict pass/fail QA gates with max 3 retries.
+- Tasks to include:
+  - UI task input box
+  - Task list rendering
+  - Add task functionality
+  - Delete task functionality
+  - Toggle task completion functionality
+  - Persist data locally (localStorage)
+- Update task status in the tasklist.
+
+### Phase 4: Final Integration & Validation
+- Spawn **testing-reality-checker** to do full app end-to-end validation.
+- Comprehensive visual and functional confirmation that todo app meets spec.
+- Final quality gate before production readiness.
+
+---
+
+# 2. Risk Checklist
+
+- **Scope Creep**: Avoid adding features beyond core todo functionality.
+- **Incomplete Requirements**: Confirm exact required features before development.
+- **Insufficient QA Evidence**: Ensure screenshots and testing are precise.
+- **Retry Limit Exceeded**: Max 3 attempts per task; otherwise escalate.
+- **Agent Communication Failure**: Maintain clear handoffs with full context.
+- **Data Persistence**: Risk that localStorage or persistence may behave inconsistently between browsers.
+- **UI Usability**: Minimal UX risk but must verify basic usability.
+- **Integration Gaps**: Risk of isolated feature completeness not aligning into a cohesive app.
+
+---
+
+# 3. Concrete Handoff Instructions for Specialist Agent
+
+### To project-manager-senior
+- Read project specification "simple todo app" core requirements:
+  - Add tasks with text
+  - View task list with all tasks
+  - Delete individual tasks
+  - Mark tasks complete/incomplete
+  - Persist tasks locally on the device (localStorage)
+- Create concise task list with no added features. Number tasks clearly.
+- Save task list to project-tasks/simple-todo-tasklist.md
+
+### To ArchitectUX
+- Use task list and specification to create minimal technical architecture.
+- Define frontend framework and state handling strategy.
+- Sketch simple visual wireframe: input box on top, list below, each with delete and toggle controls.
+- Store deliverables in project-docs/simple-todo-architecture.md and CSS files if applicable.
+
+### To Developer Agent (Frontend Developer)
+- Implement one task at a time from task list using ArchitectUX foundation.
+- Submit completed task marking exact files changed and usage instructions.
+- Await QA validation before proceeding.
+
+### To EvidenceQA
+- Test implemented task functionality with precise steps.
+- Capture clear screenshots showing feature working as specified.
+- Report PASS or FAIL with exact reasons and improvement suggestions.
+
+---
+
+# 4. Success Criteria for QA
+
+- Each task feature works exactly as defined; no partial implementations.
+- UI visually matches wireframe and expected user flow.
+- Adding a task adds it immediately to the list.
+- Deleting a task removes it completely.
+- Toggling completion updates task state visually.
+- Task list persists after page reload (localStorage test).
+- No console errors or crashes during interaction.
+- Screenshots must demonstrate the functional state relevant to the task.
+- QA verdict is PASS only if all above verified visually and functionally.
+
+---
+
+Pipeline readiness summary: I am prepared to spawn the **project-manager-senior** with the above instructions to initiate Phase 1. Please confirm to proceed.

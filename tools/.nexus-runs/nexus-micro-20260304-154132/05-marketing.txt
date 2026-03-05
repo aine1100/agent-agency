@@ -1,0 +1,12 @@
+﻿<<<FILE:marketing-plan.md>>>
+Plan
+<<<END FILE>>>
+<<<FILE:landing-page-copy.md>>>
+Landing copy
+<<<END FILE>>>
+<<<FILE:social-posts.md>>>
+Post 1
+<<<END FILE>>>
+<<<FILE:value-proposition.md>>>
+Value prop
+<<<END FILE>>>

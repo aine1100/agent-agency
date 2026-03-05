@@ -91,7 +91,7 @@ export default async function RunsPage() {
                                         <td className="px-6 py-5">
                                             <div className="flex flex-col gap-1.5">
                                                 <span className="font-semibold text-foreground">{run.workflowName}</span>
-                                                <span className="text-[10px] font-mono text-muted">#{run.id.split('_')[1].slice(0, 10)}</span>
+                                                <span className="text-[10px] font-mono text-muted">#{run.id.slice(0, 8)}</span>
                                             </div>
                                         </td>
                                          <td className="px-6 py-5">
@@ -132,7 +132,7 @@ export default async function RunsPage() {
                                                 href={`/dashboard/runs/${run.id}`}
                                                 className="inline-flex h-8 items-center rounded-lg border border-border px-3 text-[10px] font-semibold transition-all hover:bg-foreground hover:text-card"
                                             >
-                                                Detailed View
+                                              Details
                                             </Link>
                                         </td>
                                     </tr>

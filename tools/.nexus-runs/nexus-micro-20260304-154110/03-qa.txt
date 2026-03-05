@@ -1,0 +1,56 @@
+﻿[DRY_RUN] 3) QA
+Agent: C:\Users\aine\Downloads\codes\agency-agents\testing\testing-evidence-collector.md
+Task Preview:
+Perform QA review for this objective:
+make a simple todo app
+
+Generated app directory:
+.\.nexus-runs\nexus-micro-20260304-154110\app
+
+Generated files:
+
+
+Specialist output (includes file contents):
+[DRY_RUN] 2) Specialist
+Agent: C:\Users\aine\Downloads\codes\agency-agents\engineering\engineering-frontend-developer.md
+Task Preview:
+You are the implementation specialist for this objective:
+make a simple todo app
+
+Orchestrator handoff:
+[DRY_RUN] 1) Orchestrator
+Agent: C:\Users\aine\Downloads\codes\agency-agents\specialized\agents-orchestrator.md
+Task Preview:
+Activate NEXUS-Micro mode.
+
+Objective:
+make a simple todo app
+
+Required output:
+1. Execution plan with clear phases
+2. Risk checklist
+3. Concrete handoff instructions for the specialist agent
+4. Success criteria for QA
+
+Build a runnable web app now. Do not return planning-only output.
+Do not delegate to other agents. Deliver concrete fi
+
+...[truncated]...
+
+>
+<<<FILE:app.js>>>
+...content...
+<<<END FILE>>>
+<<<FILE:README.md>>>
+...content...
+<<<END FILE>>>
+<<<RUN>>>
+Commands to run/test the app locally.
+<<<END RUN>>>
+
+No markdown fences. No explanations outside these blocks.
+
+Return:
+- PASS or FAIL
+- Evidence-based findings
+- Exact fixes required if FAIL

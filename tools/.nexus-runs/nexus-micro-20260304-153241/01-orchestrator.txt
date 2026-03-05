@@ -1,0 +1,98 @@
+Starting NEXUS-Micro mode execution for a simple todo app project.
+
+---
+
+# 1. Execution Plan with Clear Phases
+
+### Phase 1: Project Analysis & Planning
+- Define scope and core features of the simple todo app (create, read, update, delete tasks)
+- Spawn project-manager-senior to generate an exact, minimal task list based on simple todo app requirements
+- Deliverable: project-tasks/simple-todo-tasklist.md
+
+### Phase 2: Technical Architecture & UX Foundation
+- Spawn ArchitectUX to design minimal technical architecture and UX foundation for the todo app
+- Foundation includes folder structure, basic UI skeleton, and data storage approach (local storage or simple backend)
+- Deliverable: project-docs/simple-todo-architecture.md + initial UI assets
+
+### Phase 3: Development-QA Continuous Loop
+- For each task from the task list, spawn appropriate developer (likely Frontend Developer)
+- Enable iterative implementation with EvidenceQA validating each task precisely
+- Tasks to cover: UI layout, task CRUD functionality, state persistence, basic styling
+- Pass each task's QA before moving to next
+- Produce screenshot evidence for all validations
+
+### Phase 4: Final Integration & Validation
+- After all task-level QA pass, spawn testing-reality-checker to perform full app integration testing
+- Confirm app functions as a cohesive system following minimal todo app spec
+- Delivery includes final QA report with screenshots and production-readiness decision
+
+---
+
+# 2. Risk Checklist
+
+- **Scope Creep:** Risk of adding extra features outside simple todo core (prevent with strict task list)
+- **Quality Skips:** Potential to skip QA or pass with insufficient evidence (mitigate with enforced evidence requirement)
+- **Miscommunication:** Ambiguous handoffs causing developer to implement non-required features (avoid with concrete instructions referencing spec)
+- **Technical Ambiguity:** Unclear architecture decisions (simple local storage vs backend) can delay development
+- **Agent Failures:** Specialist agent spawn failure or stalls (implement retry logic)
+- **UI/UX Usability:** Overcomplicating UI rather than keeping minimal (controlled by UX foundation phase)
+- **Testing Coverage:** Missing critical functionality in QA tests (EvidenceQA instructed to verify all CRUD flows)
+
+---
+
+# 3. Concrete Handoff Instructions for Specialist Agent
+
+**Agent**: project-manager-senior  
+**Instruction**:  
+- Read the project specification at project-specs/simple-todo-setup.md  
+- Create a minimal, comprehensive task list reflecting *only* the core todo app features: task creation, reading/listing, updating/editing, deleting, and persistence  
+- Do *not* add additional features like user authentication, tagging, or notifications  
+- Structure task list in markdown with checklist format (e.g., "### [ ] Task Name")  
+- Save output as project-tasks/simple-todo-tasklist.md  
+
+---
+
+**Agent**: ArchitectUX  
+**Instruction**:  
+- Use project-specs/simple-todo-setup.md and project-tasks/simple-todo-tasklist.md as reference  
+- Design a minimal technical architecture ensuring clarity for frontend implementation (preferably React/Vue SPA with local storage)  
+- Define folder/file structure, main UI components, data models, and persistence mechanism  
+- Provide basic UX wireframe or layouts for key screens (main todo list, task editor)  
+- Deliver architecture doc as project-docs/simple-todo-architecture.md with any supporting UI assets  
+
+---
+
+**Agent**: Frontend Developer  
+**Instruction**:  
+- Implement ONE task at a time from project-tasks/simple-todo-tasklist.md using the ArchitectUX foundation  
+- Mark the task complete only after full implementation of specified feature  
+- Prepare implementation for EvidenceQA testing  
+- Deliver code and status update for each task  
+
+---
+
+**Agent**: EvidenceQA  
+**Instruction**:  
+- For each completed task, conduct detailed testing aligned exactly to the task scope  
+- Verify all critical functionality with screenshots as visual evidence  
+- Provide clear PASS/FAIL result with precise feedback if fail  
+- Validate CRUD operations thoroughly (creation, reading/listing, editing, deletion, persistent saving)  
+- Use conservative judgment: default to FAIL if evidence is inconclusive or missing  
+
+---
+
+# 4. Success Criteria for QA
+
+- Each single task must be verified fully for intended functionality without extra features  
+- CRUD operations function without errors and UI updates correctly  
+- Data persistence verified (tasks remain after page reload)  
+- UI is minimal but usable as per architecture specs  
+- No visual bugs or missing elements on screenshots  
+- All QA cycles result in PASS before next task begins  
+- Final integration test certifies app readiness for deployment with no critical issues  
+
+---
+
+Report summary complete. Ready to proceed to Phase 1: Project Analysis & Planning.
+
+Please confirm to spawn project-manager-senior to generate the task list using the provided handoff instructions.

@@ -1,0 +1,4 @@
+﻿marketing-plan.md
+landing-page-copy.md
+social-posts.md
+value-proposition.md

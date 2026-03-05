@@ -1,0 +1,66 @@
+﻿Activating NEXUS-Micro mode for simple todo app project.
+
+---
+
+# 1. Execution Plan with Clear Phases
+
+### Phase 1: Project Analysis & Planning
+- Confirm simple todo app specification: basic CRUD (Create, Read, Update, Delete) operations for tasks, simple UI.
+- Spawn **project-manager-senior** to create a concise task list exactly reflecting minimal todo app requirements.
+
+### Phase 2: Technical Architecture
+- Spawn **ArchitectUX** to prepare lightweight technical architecture and UI foundation suitable for a simple todo app.
+- Deliverables: architecture document, basic wireframe/layout, tech stack recommendation.
+
+### Phase 3: Development-QA Continuous Loop
+- For each task in the task list (e.g. task creation, task listing, task editing, task deletion, UI styling):
+  - Spawn **Frontend Developer** (likely sufficient given the simplicity) to implement one task at a time.
+  - Upon implementation completion, spawn **EvidenceQA** to execute targeted tests with visual screenshot evidence.
+  - If QA fails, loop back to Frontend Developer with explicit feedback; max 3 retry attempts per task before escalation.
+
+### Phase 4: Final Integration & Validation
+- After all tasks pass QA individually, spawn **testing-reality-checker** to validate final integration and overall app readiness.
+- Confirm user flows and UI consistency with final screenshots and evidence.
+- Final decision defaults to "NEEDS WORK" unless overwhelming proof of full functionality and quality is provided.
+
+---
+
+# 2. Risk Checklist
+
+- **Scope Creep**: Avoid adding features beyond simple todo app core (no luxury features).
+- **Incomplete Task List**: Ensure specifications fully reflect CRUD simplicity; missing tasks will disrupt planning.
+- **Quality Gate Failures**: Tasks may fail QA if UI or functionality is incomplete or buggy.
+- **Retry Limit Exhaustion**: Repeated task failures lead to escalation and potential project block.
+- **Agent Miscommunication**: Insufficient or unclear handoff instructions may cause implementation errors.
+- **Testing Evidence Quality**: Poor screenshot or testing documentation may cause ambiguous QA decisions.
+- **Final Integration Issues**: Separate tasks may pass but integration may expose bugs or inconsistency.
+
+---
+
+# 3. Concrete Handoff Instructions for Specialist Agent (Frontend Developer)
+
+- Context: Implement TASK [X] from the definitive task list for a simple todo app.
+- Requirements:
+  - Follow architecture and UX foundation outputs strictly.
+  - Implement only the assigned task now (e.g., "Implement task creation UI and logic").
+  - Ensure all CRUD operations have a working front-end interface.
+  - Validate basic UX: responsiveness, button states, input validation.
+  - Commit completed implementation with a "task complete" confirmation message.
+- Deliverable: Fully functional feature matching task description, ready for QA testing.
+- Reminder: Wait for QA feedback before advancing or starting next task.
+
+---
+
+# 4. Success Criteria for QA (EvidenceQA)
+
+For each task:
+- Functionality works as specified: button clicks, form inputs, state changes are effective.
+- UI matches architecture wireframes and UX guidelines.
+- No crashes or obvious bugs during interaction.
+- Screenshots clearly show completed functionality in action (e.g., task added, task edited, task deleted).
+- PASS/FAIL decision accompanied by detailed feedback highlighting issues or affirming success.
+- No visual regressions or usability blockers present.
+
+---
+
+Ready to proceed with initializing Phase 1 and spawning project-manager-senior to create task list from the simple todo app specification.

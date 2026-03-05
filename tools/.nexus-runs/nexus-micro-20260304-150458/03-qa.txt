@@ -1,0 +1,40 @@
+[DRY_RUN] 3) QA
+Agent: C:\Users\aine\Downloads\codes\agency-agents\tools\run-agent.ps1
+Task Preview:
+Perform QA on the specialist output for this objective:
+smoke
+
+Specialist output:
+[DRY_RUN] 2) Specialist
+Agent: C:\Users\aine\Downloads\codes\agency-agents\tools\run-agent.ps1
+Task Preview:
+NEXUS-Micro context:
+
+Objective:
+smoke
+
+Orchestrator handoff:
+[DRY_RUN] 1) Orchestrator
+Agent: C:\Users\aine\Downloads\codes\agency-agents\tools\run-agent.ps1
+Task Preview:
+Activate NEXUS-Micro mode.
+
+Objective:
+smoke
+
+Required output:
+1. Execution plan with clear phases
+2. Risk checklist
+3. Concrete handoff instructions for the specialist agent
+4. Success criteria for QA
+
+Execute as the specialist agent and produce:
+1. Implementation approach
+2. Concrete actions/commands
+3. Deliverable output
+4. Known limitations or assumptions
+
+Return:
+- PASS or FAIL
+- Evidence-based findings
+- Exact fixes required if FAIL

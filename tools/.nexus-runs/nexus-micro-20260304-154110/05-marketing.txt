@@ -1,0 +1,55 @@
+﻿[DRY_RUN] 5) Marketing
+Agent: C:\Users\aine\Downloads\codes\agency-agents\marketing\marketing-content-creator.md
+Task Preview:
+Create a launch-ready marketing pack for this app objective:
+make a simple todo app
+
+App files generated:
+
+
+Implementation summary:
+[DRY_RUN] 2) Specialist
+Agent: C:\Users\aine\Downloads\codes\agency-agents\engineering\engineering-frontend-developer.md
+Task Preview:
+You are the implementation specialist for this objective:
+make a simple todo app
+
+Orchestrator handoff:
+[DRY_RUN] 1) Orchestrator
+Agent: C:\Users\aine\Downloads\codes\agency-agents\specialized\agents-orchestrator.md
+Task Preview:
+Activate NEXUS-Micro mode.
+
+Objective:
+make a simple todo app
+
+Required output:
+1. Execution plan with clear phases
+2. Risk checklist
+3. Concrete handoff instructions for the specialist agent
+4. Success criteria for QA
+
+Build a runnable web app now. Do not return planning-only output.
+Do not delegate to other agents. Deliver concrete files.
+
+Mandatory app requirements:
+- Add tasks with text
+- List al
+
+...[truncated]...
+
+le blocks:
+<<<FILE:marketing-plan.md>>>
+...content...
+<<<END FILE>>>
+<<<FILE:landing-page-copy.md>>>
+...content...
+<<<END FILE>>>
+<<<FILE:social-posts.md>>>
+...content...
+<<<END FILE>>>
+<<<FILE:value-proposition.md>>>
+...content...
+<<<END FILE>>>
+
+Keep output practical, concise, and execution-ready.

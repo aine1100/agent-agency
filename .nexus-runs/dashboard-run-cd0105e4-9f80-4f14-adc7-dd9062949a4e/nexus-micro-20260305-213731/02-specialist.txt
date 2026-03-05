@@ -1,0 +1,155 @@
+﻿<<<FILE:index.html>>>
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Restaurant Management App</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <div id="app"></div>
+    <script src="app.js" type="module"></script>
+</body>
+</html>
+<<<END FILE>>>
+<<<FILE:style.css>>>
+body {
+    font-family: Arial, sans-serif;
+    background-color: #f9f9f9;
+    margin: 0;
+    padding: 20px;
+}
+
+h1 {
+    text-align: center;
+}
+
+.task-list {
+    max-width: 600px;
+    margin: 0 auto;
+    padding: 0;
+    list-style: none;
+}
+
+.task {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 10px;
+    margin: 5px 0;
+    background-color: #fff;
+    border: 1px solid #ddd;
+    border-radius: 5px;
+}
+
+.task input[type="checkbox"] {
+    cursor: pointer;
+}
+
+.task.completed {
+    text-decoration: line-through;
+    background-color: #e0ffe0;
+}
+
+button {
+    background-color: #ff6347;
+    color: white;
+    border: none;
+    padding: 5px 10px;
+    cursor: pointer;
+    border-radius: 5px;
+}
+
+button:hover {
+    background-color: #ff4500;
+}
+<<<END FILE>>>
+<<<FILE:app.js>>>
+import { useState, useEffect } from 'https://unpkg.com/react@17/umd/react.development.js';
+import { createRoot } from 'https://unpkg.com/react-dom@17/umd/react-dom.development.js';
+
+function App() {
+    const [tasks, setTasks] = useState(JSON.parse(localStorage.getItem('tasks')) || []);
+    const [taskText, setTaskText] = useState('');
+
+    useEffect(() => {
+        localStorage.setItem('tasks', JSON.stringify(tasks));
+    }, [tasks]);
+
+    const addTask = () => {
+        if (taskText.trim() !== '') {
+            const newTask = { id: Date.now(), text: taskText, completed: false };
+            setTasks([...tasks, newTask]);
+            setTaskText('');
+        }
+    };
+
+    const toggleTaskCompletion = (id) => {
+        setTasks(tasks.map(task => (
+            task.id === id ? { ...task, completed: !task.completed } : task
+        )));
+    };
+
+    const deleteTask = (id) => {
+        setTasks(tasks.filter(task => task.id !== id));
+    };
+
+    return (
+        <div>
+            <h1>Restaurant Management Task List</h1>
+            <input
+                type="text"
+                value={taskText}
+                onChange={(e) => setTaskText(e.target.value)}
+                placeholder="Add a new task"
+            />
+            <button onClick={addTask}>Add Task</button>
+            <ul className="task-list">
+                {tasks.map(task => (
+                    <li key={task.id} className={`task ${task.completed ? 'completed' : ''}`}>
+                        <input
+                            type="checkbox"
+                            checked={task.completed}
+                            onChange={() => toggleTaskCompletion(task.id)}
+                        />
+                        <span>{task.text}</span>
+                        <button onClick={() => deleteTask(task.id)}>Delete</button>
+                    </li>
+                ))}
+            </ul>
+        </div>
+    );
+}
+
+const root = createRoot(document.getElementById('app'));
+root.render(<App />);
+<<<END FILE>>>
+<<<FILE:README.md>>>
+# Restaurant Management App
+
+## Overview
+A simple React.js task management app for restaurant management.
+
+## Features
+- Add tasks with text
+- List all tasks
+- Toggle complete/incomplete
+- Delete tasks
+- Persist tasks in localStorage
+
+## Running the App
+1. Open `index.html` in a web browser to view the app.
+2. Add tasks using the input field and manage them as needed.
+
+## Technologies Used
+- React
+- HTML
+- CSS
+<<<END FILE>>>
+<<<RUN>>>
+To run the app locally:
+1. Ensure you have an internet connection for loading React.
+2. Open `index.html` in your web browser.
+3. Interact with the task management features.
+<<<END RUN>>>

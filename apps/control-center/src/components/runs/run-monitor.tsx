@@ -13,7 +13,9 @@ import {
   Database,
   Cpu,
   Clock,
-  Target
+  Target,
+  Eye,
+  FileCode
 } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import { RunStatusBadge } from "@/components/runs/run-status-badge";
@@ -44,6 +46,7 @@ export function RunMonitor({ runId, initialRun, initialLogs }: RunMonitorProps) 
   const [selectedContent, setSelectedContent] = useState<string>("");
   const [previewLoading, setPreviewLoading] = useState(false);
   const [previewError, setPreviewError] = useState<string | null>(null);
+  const [activeTab, setActiveTab] = useState<"log" | "preview">("log");
   const [actionLoading, setActionLoading] = useState<"cancel" | "retry" | null>(
     null,
   );
@@ -60,13 +63,18 @@ export function RunMonitor({ runId, initialRun, initialLogs }: RunMonitorProps) 
       setRun(runPayload.run);
 
       const logsUrl = logsCursor
-        ? `/api/runs/${runId}/logs?after=${encodeURIComponent(logsCursor)}`
+        ? `/api/runs/${runId}/logs?after=${encodeURIComponent(logsCursor.toISOString())}`
         : `/api/runs/${runId}/logs`;
       const logsResponse = await fetch(logsUrl, { cache: "no-store" });
       if (!logsResponse.ok) return;
       const logPayload = (await logsResponse.json()) as { logs: (typeof schema.runLog.$inferSelect)[] };
       if (logPayload.logs.length > 0) {
-        setLogs((current) => [...current, ...logPayload.logs]);
+        setLogs((current) => {
+          const newLogs = logPayload.logs.filter(
+            (newLog) => !current.some((existing) => existing.id === newLog.id)
+          );
+          return [...current, ...newLogs];
+        });
       }
     }, activeStatuses.includes(run.status) ? 2000 : 8000);
 
@@ -128,22 +136,22 @@ export function RunMonitor({ runId, initialRun, initialLogs }: RunMonitorProps) 
       <div className="space-y-6">
         {/* Run Metadata Grid */}
         <section className="grid grid-cols-2 gap-px rounded-3xl border border-border bg-border overflow-hidden">
-          <InfoCard 
+          <InfoCard
             icon={Target}
-            label="Current Objective" 
-            value={run.objective || "No objective defined"} 
+            label="Current Objective"
+            value={run.objective || "No objective defined"}
             className="col-span-2 bg-card p-6"
           />
-          <InfoCard 
+          <InfoCard
             icon={Cpu}
-            label="Infrastructure" 
-            value={`${run.provider}:${run.model}`} 
+            label="Infrastructure"
+            value={`${run.provider}:${run.model}`}
             className="bg-card p-6"
           />
-          <InfoCard 
+          <InfoCard
             icon={Clock}
-            label="Timeline" 
-            value={run.startedAt ? formatDate(run.startedAt) : "Awaiting resource..."} 
+            label="Timeline"
+            value={run.startedAt ? formatDate(run.startedAt) : "Awaiting resource..."}
             className="bg-card p-6"
           />
           <div className="col-span-2 bg-card p-6 flex items-center justify-between border-t border-border/50">
@@ -194,7 +202,7 @@ export function RunMonitor({ runId, initialRun, initialLogs }: RunMonitorProps) 
                   </div>
                   <div>
                     <p className="text-sm font-semibold text-foreground">{step.title}</p>
-                    <p className="text-[10px] text-muted">trace_id: {step.id.split('_')[1]}</p>
+                    <p className="text-[10px] text-muted">trace_id: {step.id.slice(0, 8)}</p>
                   </div>
                 </div>
                 <RunStatusBadge value={step.status} />
@@ -214,34 +222,82 @@ export function RunMonitor({ runId, initialRun, initialLogs }: RunMonitorProps) 
         )}
       </div>
 
-      {/* Right Column: Real-time Output */}
+      {/* Right Column: Real-time Output & Visualization */}
       <div className="space-y-6">
-        {/* Output Log Terminal */}
-        <section className="flex flex-col rounded-3xl border border-border bg-background overflow-hidden h-[400px]">
-          <header className="border-b border-border bg-card p-4 flex items-center justify-between">
-            <h3 className="text-[10px] font-semibold text-muted flex items-center gap-2">
-              <TerminalSquare className="h-3 w-3" />
-              System Output Log
-            </h3>
-            {activeStatuses.includes(run.status) && (
-              <div className="flex items-center gap-1.5 text-[9px] font-semibold text-status-green">
+        {/* Output & Preview Tabs */}
+        <section className="flex flex-col rounded-3xl border border-border bg-background overflow-hidden h-[500px]">
+          <header className="border-b border-border bg-card p-1.5 flex items-center justify-between">
+            <div className="flex p-1 bg-background/50 rounded-2xl gap-1">
+              <button
+                onClick={() => setActiveTab("log")}
+                className={cn(
+                  "flex items-center gap-2 px-4 py-2 rounded-xl text-[10px] font-bold transition-all",
+                  activeTab === "log"
+                    ? "bg-card text-foreground shadow-sm border border-border"
+                    : "text-muted hover:text-foreground"
+                )}
+              >
+                <TerminalSquare className="h-3 w-3" />
+                SYSTEM TRACE
+              </button>
+              <button
+                onClick={() => setActiveTab("preview")}
+                className={cn(
+                  "flex items-center gap-2 px-4 py-2 rounded-xl text-[10px] font-bold transition-all",
+                  activeTab === "preview"
+                    ? "bg-card text-foreground shadow-sm border border-border"
+                    : "text-muted hover:text-foreground"
+                )}
+              >
+                <Eye className="h-3 w-3" />
+                LIVE PREVIEW
+              </button>
+            </div>
+            {activeStatuses.includes(run.status) && activeTab === "log" && (
+              <div className="flex items-center gap-1.5 px-4 text-[9px] font-semibold text-status-green">
                 <div className="h-1.5 w-1.5 rounded-full bg-status-green animate-ping" />
-                Live Stream
+                ACTIVE STREAM
               </div>
             )}
           </header>
-          <div className="flex-1 overflow-auto bg-black p-4 font-mono text-[10px] space-y-2 selection:bg-foreground selection:text-card">
-            {logs.length === 0 ? (
-              <p className="text-muted">// Initialization sequence pending...</p>
+
+          <div className="flex-1 relative overflow-hidden bg-black/20">
+            {activeTab === "log" ? (
+              <div className="absolute inset-0 overflow-auto bg-black p-4 font-mono text-[10px] space-y-2 selection:bg-foreground selection:text-card">
+                {logs.length === 0 ? (
+                  <p className="text-muted">// Initialization sequence pending...</p>
+                ) : (
+                  logs.map((log) => (
+                    <div key={log.id} className="flex gap-3 group">
+                      <span className="text-muted/40 shrink-0 group-hover:text-muted transition-colors">
+                        [{new Date(log.createdAt).toLocaleTimeString([], { hour12: false })}]
+                      </span>
+                      <span className="text-zinc-300 group-hover:text-white transition-colors">{log.message}</span>
+                    </div>
+                  ))
+                )}
+              </div>
             ) : (
-              logs.map((log) => (
-                <div key={log.id} className="flex gap-3 group">
-                  <span className="text-muted/40 shrink-0 group-hover:text-muted transition-colors">
-                    [{new Date(log.createdAt).toLocaleTimeString([], { hour12: false })}]
-                  </span>
-                  <span className="text-zinc-300 group-hover:text-white transition-colors">{log.message}</span>
-                </div>
-              ))
+              <div className="absolute inset-0 bg-white">
+                {selectedPath && (selectedPath.endsWith(".html") || selectedPath.endsWith(".htm") || selectedPath.endsWith(".svg")) ? (
+                  <iframe
+                    src={`/api/runs/${runId}/raw/${selectedPath}`}
+                    className="w-full h-full border-none"
+                    title="Live Preview"
+                    sandbox="allow-scripts allow-forms allow-same-origin"
+                  />
+                ) : (
+                  <div className="h-full flex flex-col items-center justify-center text-center p-8 bg-card gap-4">
+                    <div className="h-12 w-12 rounded-2xl bg-brand-purple/10 flex items-center justify-center text-brand-purple">
+                      <FileCode className="h-6 w-6" />
+                    </div>
+                    <div className="space-y-1">
+                      <p className="text-sm font-semibold text-foreground">No Entry Point Selected</p>
+                      <p className="text-[10px] text-muted max-w-[200px]">Select an HTML or SVG artifact from the repository below to initiate the live visualization viewport.</p>
+                    </div>
+                  </div>
+                )}
+              </div>
             )}
           </div>
         </section>
@@ -262,7 +318,12 @@ export function RunMonitor({ runId, initialRun, initialLogs }: RunMonitorProps) 
                 run.artifacts.map((artifact) => (
                   <button
                     key={artifact.id}
-                    onClick={() => previewFile(artifact.path)}
+                    onClick={() => {
+                      previewFile(artifact.path);
+                      if (artifact.path.endsWith(".html") || artifact.path.endsWith(".htm") || artifact.path.endsWith(".svg")) {
+                        setActiveTab("preview");
+                      }
+                    }}
                     className={cn(
                       "flex items-center justify-between w-full p-3 rounded-xl border text-left transition-all group",
                       selectedPath === artifact.path
@@ -286,7 +347,7 @@ export function RunMonitor({ runId, initialRun, initialLogs }: RunMonitorProps) 
             {selectedPath && (
               <div className="rounded-2xl bg-black border border-border p-4 h-48 overflow-auto">
                 <header className="mb-3 flex items-center justify-between border-b border-white/5 pb-2">
-                   <p className="text-[9px] font-mono text-muted">Previewing: {selectedPath}</p>
+                  <p className="text-[9px] font-mono text-muted">Previewing: {selectedPath}</p>
                 </header>
                 {previewLoading ? (
                   <div className="flex items-center gap-2 text-muted text-[10px] font-mono">

@@ -1,0 +1,187 @@
+﻿<<<FILE:index.html>>>
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Agency Landing Page</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <header>
+        <h1>Welcome to Our Coding Agency</h1>
+        <p>Your success is our mission.</p>
+    </header>
+    <main>
+        <section id="task-section">
+            <h2>Task List</h2>
+            <input type="text" id="task-input" placeholder="Add a new task...">
+            <button id="add-task-btn">Add Task</button>
+            <ul id="task-list"></ul>
+        </section>
+    </main>
+    <footer>
+        <p>&copy; 2023 Coding Agency. All rights reserved.</p>
+    </footer>
+    <script src="app.js"></script>
+</body>
+</html>
+<<<END FILE>>>
+<<<FILE:style.css>>>
+body {
+    font-family: Arial, sans-serif;
+    margin: 0;
+    padding: 0;
+    background-color: #f4f4f4;
+    color: #333;
+}
+
+header {
+    background-color: #007bff;
+    color: white;
+    padding: 20px;
+    text-align: center;
+}
+
+main {
+    padding: 20px;
+}
+
+#task-section {
+    background-color: white;
+    padding: 20px;
+    border-radius: 5px;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+}
+
+input[type="text"] {
+    width: 70%;
+    padding: 10px;
+    margin: 10px 0;
+    border: 1px solid #ccc;
+    border-radius: 4px;
+}
+
+button {
+    padding: 10px 15px;
+    border: none;
+    background-color: #28a745;
+    color: white;
+    border-radius: 4px;
+    cursor: pointer;
+}
+
+button:hover {
+    background-color: #218838;
+}
+
+ul {
+    list-style: none;
+    padding: 0;
+}
+
+li {
+    display: flex;
+    justify-content: space-between;
+    padding: 10px;
+    border-bottom: 1px solid #ccc;
+}
+
+li.completed {
+    text-decoration: line-through;
+    color: #6c757d;
+}
+
+button.delete-btn {
+    background-color: #dc3545;
+}
+<<<END FILE>>>
+<<<FILE:app.js>>>
+document.addEventListener("DOMContentLoaded", () => {
+    const taskInput = document.getElementById("task-input");
+    const addTaskBtn = document.getElementById("add-task-btn");
+    const taskList = document.getElementById("task-list");
+
+    let tasks = JSON.parse(localStorage.getItem("tasks")) || [];
+
+    const renderTasks = () => {
+        taskList.innerHTML = "";
+        tasks.forEach((task, index) => {
+            const li = document.createElement("li");
+            li.className = task.completed ? "completed" : "";
+
+            const span = document.createElement("span");
+            span.textContent = task.text;
+            span.onclick = () => toggleTask(index);
+
+            const deleteBtn = document.createElement("button");
+            deleteBtn.textContent = "Delete";
+            deleteBtn.className = "delete-btn";
+            deleteBtn.onclick = () => deleteTask(index);
+
+            li.appendChild(span);
+            li.appendChild(deleteBtn);
+            taskList.appendChild(li);
+        });
+    };
+
+    const addTask = () => {
+        const taskText = taskInput.value.trim();
+        if (taskText) {
+            tasks.push({ text: taskText, completed: false });
+            taskInput.value = "";
+            updateLocalStorage();
+            renderTasks();
+        }
+    };
+
+    const toggleTask = (index) => {
+        tasks[index].completed = !tasks[index].completed;
+        updateLocalStorage();
+        renderTasks();
+    };
+
+    const deleteTask = (index) => {
+        tasks.splice(index, 1);
+        updateLocalStorage();
+        renderTasks();
+    };
+
+    const updateLocalStorage = () => {
+        localStorage.setItem("tasks", JSON.stringify(tasks));
+    };
+
+    addTaskBtn.addEventListener("click", addTask);
+    renderTasks();
+});
+<<<END FILE>>>
+<<<FILE:README.md>>>
+# Agency Landing Page Task Manager
+
+## Overview
+A simple task manager application for an agency landing page using HTML, CSS, and JavaScript.
+
+## Features
+- Add tasks with text
+- Toggle tasks as complete/incomplete
+- Delete tasks
+- Persist tasks in localStorage
+- Clean and simple UI
+
+## Running the Application
+1. Download the files to your local machine.
+2. Open `index.html` in a web browser.
+3. You can add, toggle, and delete tasks as needed.
+
+## Technologies Used
+- HTML
+- CSS
+- JavaScript
+
+## Author
+Coding Agency Team
+<<<END FILE>>>
+<<<RUN>>>
+1. Download the files provided.
+2. Open `index.html` in a web browser to view and interact with the task manager app.
+<<<END RUN>>>

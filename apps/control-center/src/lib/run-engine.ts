@@ -37,10 +37,11 @@ function getSteps(includeMarketing: boolean) {
     : pipelineSteps.filter((step) => step.key !== "marketing");
 }
 
-async function appendLog(runId: string, message: string, level = "info") {
+async function appendLog(runId: string, message: string, level = "info", stepKey?: string) {
   await db.insert(schema.runLog).values({
     id: crypto.randomUUID(),
     runId,
+    stepKey,
     message,
     level,
   });
@@ -87,7 +88,7 @@ async function collectFiles(rootPath: string) {
   return files;
 }
 
-async function ingestArtifacts(runId: string, artifactRoot: string) {
+async function ingestArtifacts(runId: string, artifactRoot: string, fallbackStepKey?: string) {
   const files = await collectFiles(artifactRoot);
   const values: (typeof schema.artifact.$inferInsert)[] = [];
 
@@ -95,6 +96,17 @@ async function ingestArtifacts(runId: string, artifactRoot: string) {
     const fileStats = await stat(filePath);
     const relativePath = path.relative(artifactRoot, filePath).replace(/\\/g, "/");
     const extension = path.extname(filePath).toLowerCase();
+    
+    // Determine the most appropriate step for this artifact
+    let stepKey = fallbackStepKey;
+    if (relativePath.includes("marketing/")) {
+      stepKey = "marketing";
+    } else if (relativePath.includes("app/") || [".html", ".js", ".jsx", ".tsx", ".css"].includes(extension)) {
+      stepKey = "specialist";
+    } else if (relativePath.includes("SUMMARY") || relativePath.includes("final")) {
+      stepKey = "reality_checker";
+    }
+
     const kind =
       extension === ".md"
         ? "markdown"
@@ -102,13 +114,14 @@ async function ingestArtifacts(runId: string, artifactRoot: string) {
           ? "text"
           : extension === ".json"
             ? "json"
-            : extension === ".html" || extension === ".css" || extension === ".js"
+            : extension === ".html" || extension === ".css" || extension === ".js" || extension === ".jsx" || extension === ".tsx"
               ? "code"
               : "file";
 
     values.push({
       id: crypto.randomUUID(),
       runId,
+      stepKey,
       path: relativePath,
       kind,
       size: fileStats.size,
@@ -133,73 +146,36 @@ async function writeMockArtifacts(runId: string, objective: string, includeMarke
   const outputRoot = path.resolve(process.cwd(), env.RUN_OUTPUT_ROOT);
   const runRoot = path.join(outputRoot, `dashboard-run-${runId}`);
   const appRoot = path.join(runRoot, "app");
+  const srcRoot = path.join(appRoot, "src");
+  const componentsRoot = path.join(srcRoot, "components");
+  const distRoot = path.join(appRoot, "dist");
   const marketingRoot = path.join(runRoot, "marketing");
 
-  await mkdir(appRoot, { recursive: true });
+  await mkdir(componentsRoot, { recursive: true });
+  await mkdir(distRoot, { recursive: true });
   await mkdir(marketingRoot, { recursive: true });
 
-  const summary = `# Mock Run Summary
+  const summary = `# Complex React Project Summary\n\n- Run: ${runId}\n- Objective: ${objective}\n- Verdict: READY\n`;
 
-- Run: ${runId}
-- Objective: ${objective}
-- Verdict: READY
-`;
+  const headerJsx = `import React from 'react';\n\nexport const Header = () => (\n  <header className="p-4 border-b border-white/10">\n    <h1 className="text-xl font-bold">Protocol Task Manager</h1>\n  </header>\n);`;
+  
+  const todoListJsx = `import React, { useState } from 'react';\n\nexport const TodoList = () => {\n  const [todos, setTodos] = useState([]);\n  return (\n    <div className="p-6">\n      <ul className="space-y-2">\n        {todos.map((t, i) => <li key={i}>{t}</li>)}\n      </ul>\n    </div>\n  );\n};`;
 
-  const indexHtml = `<!doctype html>
-<html lang="en">
-  <head>
-    <meta charset="utf-8" />
-    <meta name="viewport" content="width=device-width,initial-scale=1" />
-    <title>Todo App</title>
-    <link rel="stylesheet" href="./style.css" />
-  </head>
-  <body>
-    <main class="shell">
-      <h1>Todo App</h1>
-      <div class="row">
-        <input id="taskInput" placeholder="Add a task..." />
-        <button id="addBtn">Add</button>
-      </div>
-      <ul id="taskList"></ul>
-    </main>
-    <script src="./app.js"></script>
-  </body>
-</html>
-`;
+  const mainJs = `import React from 'react';\nimport ReactDOM from 'react-dom';\nimport { Header } from './components/Header';\nimport { TodoList } from './components/TodoList';\n\nconst App = () => (\n  <div className="min-h-screen bg-zinc-950 text-white font-sans">\n    <Header />\n    <TodoList />\n  </div>\n);\n\nReactDOM.render(<App />, document.getElementById('root'));`;
 
-  const styleCss = `:root{color-scheme:light dark}body{font-family:system-ui;background:#10131f;color:#f1f3f5;margin:0}.shell{max-width:640px;margin:56px auto;padding:24px;border-radius:16px;background:#1a2033}.row{display:flex;gap:8px}input{flex:1;padding:12px;border-radius:10px;border:1px solid #3a4466;background:#12182b;color:#fff}button{padding:12px 16px;border-radius:10px;border:0;background:#5eead4;color:#0b1020;font-weight:700}li{display:flex;justify-content:space-between;padding:10px 0;border-bottom:1px solid #2a3352}.done{text-decoration:line-through;opacity:.6}`;
-
-  const appJs = `const input=document.getElementById("taskInput");const addBtn=document.getElementById("addBtn");const list=document.getElementById("taskList");const key="todo_items";let tasks=JSON.parse(localStorage.getItem(key)||"[]");const save=()=>localStorage.setItem(key,JSON.stringify(tasks));const render=()=>{list.innerHTML="";tasks.forEach((t,i)=>{const li=document.createElement("li");const a=document.createElement("button");a.textContent=t.done?"Undo":"Done";a.onclick=()=>{tasks[i].done=!tasks[i].done;save();render();};const d=document.createElement("button");d.textContent="Delete";d.onclick=()=>{tasks.splice(i,1);save();render();};const s=document.createElement("span");s.textContent=t.text;s.className=t.done?"done":"";const c=document.createElement("div");c.append(a,d);li.append(s,c);list.append(li);});};addBtn.onclick=()=>{const text=input.value.trim();if(!text)return;tasks.push({text,done:false});input.value="";save();render();};render();`;
+  const indexHtml = `<!DOCTYPE html>\n<html>\n<head><title>React Preview</title></head>\n<body><div id="root"></div><script src="./main.js"></script></body>\n</html>`;
 
   await writeFile(path.join(runRoot, "SUMMARY.md"), summary, "utf8");
-  await writeFile(path.join(appRoot, "index.html"), indexHtml, "utf8");
-  await writeFile(path.join(appRoot, "style.css"), styleCss, "utf8");
-  await writeFile(path.join(appRoot, "app.js"), appJs, "utf8");
-  await writeFile(
-    path.join(appRoot, "README.md"),
-    `# Generated Todo App\n\nObjective: ${objective}\n`,
-    "utf8",
-  );
+  await writeFile(path.join(componentsRoot, "Header.jsx"), headerJsx, "utf8");
+  await writeFile(path.join(componentsRoot, "TodoList.jsx"), todoListJsx, "utf8");
+  await writeFile(path.join(srcRoot, "main.js"), mainJs, "utf8");
+  await writeFile(path.join(distRoot, "index.html"), indexHtml, "utf8");
+  await writeFile(path.join(appRoot, "package.json"), JSON.stringify({ name: "react-app", dependencies: { "react": "^18.0.0" } }, null, 2), "utf8");
 
   if (includeMarketing) {
     await writeFile(
-      path.join(marketingRoot, "marketing-plan.md"),
-      `# Marketing Plan\n\n- Target: productivity users\n- Positioning: fast local-first todo app\n`,
-      "utf8",
-    );
-    await writeFile(
-      path.join(marketingRoot, "social-posts.md"),
-      `# Social Posts\n\n1. Meet your fast local-first todo app.\n2. Add, complete, and organize tasks in seconds.\n`,
-      "utf8",
-    );
-    await writeFile(
-      path.join(marketingRoot, "landing-page-copy.md"),
-      `# Landing Copy\n\n## Headline\nShip your day with confidence.\n`,
-      "utf8",
-    );
-    await writeFile(
-      path.join(marketingRoot, "value-proposition.md"),
-      `# Value Proposition\n\nA clean todo experience with no setup overhead.\n`,
+      path.join(marketingRoot, "campaign-strategy.md"),
+      `# Campaign Strategy\n\n- Focus: Developer productivity\n`,
       "utf8",
     );
   }
@@ -218,15 +194,15 @@ async function runMockPipeline(runId: string, objective: string, includeMarketin
 
   for (const step of getSteps(includeMarketing)) {
     await setRunStepState(runId, step.key, "RUNNING");
-    await appendLog(runId, `Starting ${step.title}...`);
+    await appendLog(runId, `Starting ${step.title}...`, "info", step.key);
     await sleep(1200);
     await setRunStepState(runId, step.key, "PASSED");
-    await appendLog(runId, `${step.title} completed.`);
+    await appendLog(runId, `${step.title} completed.`, "info", step.key);
   }
 
   const artifactRoot = await writeMockArtifacts(runId, objective, includeMarketing);
-  await ingestArtifacts(runId, artifactRoot);
-  await appendLog(runId, "Artifacts generated.");
+  await ingestArtifacts(runId, artifactRoot, "specialist");
+  await appendLog(runId, "Artifacts generated.", "info", "specialist");
 
   await db
     .update(schema.run)
@@ -250,25 +226,30 @@ function parseStepFromLine(line: string) {
 }
 
 async function findLatestRunFolder(outputRoot: string) {
-  const entries = await readdir(outputRoot, { withFileTypes: true });
-  const candidates = entries
-    .filter((entry) => entry.isDirectory())
-    .map((entry) => path.join(outputRoot, entry.name));
+  try {
+    const entries = await readdir(outputRoot, { withFileTypes: true });
+    const candidates = entries
+      .filter((entry) => entry.isDirectory())
+      .map((entry) => path.join(outputRoot, entry.name));
 
-  if (candidates.length === 0) return null;
+    if (candidates.length === 0) return null;
 
-  let latestFolder = candidates[0];
-  let latestTime = (await stat(latestFolder)).mtimeMs;
+    let latestFolder = candidates[0];
+    let latestTime = (await stat(latestFolder)).mtimeMs;
 
-  for (const candidate of candidates.slice(1)) {
-    const candidateTime = (await stat(candidate)).mtimeMs;
-    if (candidateTime > latestTime) {
-      latestTime = candidateTime;
-      latestFolder = candidate;
+    for (const candidate of candidates.slice(1)) {
+      const candidateTime = (await stat(candidate)).mtimeMs;
+      if (candidateTime > latestTime) {
+        latestTime = candidateTime;
+        latestFolder = candidate;
+      }
     }
-  }
 
-  return latestFolder;
+    return latestFolder;
+  } catch (error) {
+    console.warn(`Could not read output root ${outputRoot}:`, error);
+    return null;
+  }
 }
 
 async function runRealPipeline(
@@ -314,7 +295,7 @@ async function runRealPipeline(
     args.push("-DryRun");
   }
 
-  await appendLog(runId, `Starting real run via ${scriptPath}`);
+  await appendLog(runId, `Starting real run via ${scriptPath}`, "info", "orchestrator");
 
   const child = spawn("powershell.exe", args, {
     cwd: process.cwd(),
@@ -327,11 +308,25 @@ async function runRealPipeline(
 
   const handleLine = async (line: string) => {
     if (!line.trim()) return;
-    await appendLog(runId, line.trim());
+    await appendLog(runId, line.trim(), "info", currentStep || undefined);
     const stepKey = parseStepFromLine(line);
     if (stepKey && stepKey !== currentStep) {
       if (currentStep) {
         await setRunStepState(runId, currentStep, "PASSED");
+        
+        // Trigger intermediate artifact ingestion when transitioning from specialist
+        if (currentStep === "specialist" || currentStep === "orchestrator") {
+           try {
+             // We use a slight delay to ensure file handles are released by the powershell script
+             await sleep(1000);
+             const runFolder = await findLatestRunFolder(outputRoot);
+             if (runFolder) {
+               await ingestArtifacts(runId, runFolder, currentStep);
+             }
+           } catch (e) {
+             console.error("Intermediate ingestion failed", e);
+           }
+        }
       }
       currentStep = stepKey;
       await setRunStepState(runId, currentStep, "RUNNING");
@@ -352,7 +347,7 @@ async function runRealPipeline(
     const lines = stderrBuffer.split(/\r?\n/);
     stderrBuffer = lines.pop() ?? "";
     for (const line of lines) {
-      void appendLog(runId, line.trim(), "error");
+      void appendLog(runId, line.trim(), "error", currentStep || undefined);
     }
   });
 
@@ -362,13 +357,13 @@ async function runRealPipeline(
         await handleLine(stdoutBuffer);
       }
       if (stderrBuffer.trim()) {
-        await appendLog(runId, stderrBuffer.trim(), "error");
+        await appendLog(runId, stderrBuffer.trim(), "error", currentStep || undefined);
       }
 
       try {
         const runFolder = await findLatestRunFolder(outputRoot);
         if (runFolder) {
-          await ingestArtifacts(runId, runFolder);
+          await ingestArtifacts(runId, runFolder, currentStep || "specialist");
           await db
             .update(schema.run)
             .set({ outputRoot: runFolder })
@@ -459,6 +454,8 @@ export async function startRun(input: StartRunInput) {
   await appendLog(
     runId,
     `Run queued by ${input.startedByRole} using ${input.provider}:${input.model}`,
+    "info",
+    "orchestrator"
   );
 
   if (isMockMode) {

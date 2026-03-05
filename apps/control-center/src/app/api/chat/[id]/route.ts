@@ -6,13 +6,14 @@ import { eq, asc } from "drizzle-orm";
 
 export async function GET(
     request: Request,
-    { params }: { params: { id: string } }
+    { params }: { params: Promise<{ id: string }> }
 ) {
+    const { id } = await params;
     const auth = await requireApiSession(request);
     if (!auth.ok) return auth.response;
 
     const conversation = await db.query.conversation.findFirst({
-        where: eq(schema.conversation.id, params.id),
+        where: eq(schema.conversation.id, id),
     });
 
     if (!conversation || conversation.userId !== auth.session.user.id) {
@@ -20,7 +21,7 @@ export async function GET(
     }
 
     const messages = await db.query.chatMessage.findMany({
-        where: eq(schema.chatMessage.conversationId, params.id),
+        where: eq(schema.chatMessage.conversationId, id),
         orderBy: [asc(schema.chatMessage.createdAt)],
     });
 

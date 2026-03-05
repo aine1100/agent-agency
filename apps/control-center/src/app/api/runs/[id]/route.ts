@@ -29,6 +29,9 @@ export async function GET(request: Request, { params }: RouteParams) {
       artifacts: {
         orderBy: [asc(schema.artifact.createdAt)],
       },
+      logs: {
+        orderBy: [asc(schema.runLog.createdAt)],
+      },
     },
   });
 

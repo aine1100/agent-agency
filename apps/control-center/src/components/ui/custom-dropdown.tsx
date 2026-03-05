@@ -34,9 +34,9 @@ export function CustomDropdown({ options, value, onChange, label, className }: C
   }, []);
 
   return (
-    <div className={cn("space-y-2", className)} ref={containerRef}>
+    <div className={cn("space-y-1.5", className)} ref={containerRef}>
       {label && (
-        <label className="text-[10px] font-semibold text-muted ml-1">
+        <label className="text-[10px] font-bold text-muted/60 uppercase tracking-widest ml-1">
           {label}
         </label>
       )}
@@ -45,17 +45,22 @@ export function CustomDropdown({ options, value, onChange, label, className }: C
           type="button"
           onClick={() => setIsOpen(!isOpen)}
           className={cn(
-            "flex w-full items-center justify-between rounded-xl border border-border bg-background px-4 py-3 text-xs font-medium text-foreground outline-none transition-all focus:ring-1 focus:ring-brand-purple/20 focus:border-brand-purple/50",
-            isOpen && "border-brand-purple/50 ring-1 ring-brand-purple/20 shadow-sm"
+            "flex w-full items-center justify-between rounded-2xl border border-border bg-card/50 px-4 py-3.5 text-xs font-semibold text-foreground outline-none transition-all group hover:bg-card hover:border-brand-purple/30 shadow-sm",
+            isOpen && "border-brand-purple/50 ring-4 ring-brand-purple/5 bg-card shadow-lg"
           )}
         >
           <span className="truncate">{selectedOption?.label || "Select option..."}</span>
-          <ChevronDown className={cn("h-4 w-4 text-muted transition-transform duration-200", isOpen && "rotate-180 text-brand-purple")} />
+          <div className={cn(
+            "flex items-center justify-center h-5 w-5 rounded-full bg-foreground/5 transition-all group-hover:bg-brand-purple/10",
+            isOpen && "rotate-180 bg-brand-purple/20 text-brand-purple"
+          )}>
+            <ChevronDown className="h-3.5 w-3.5" />
+          </div>
         </button>
 
         {isOpen && (
-          <div className="absolute z-50 mt-2 w-full overflow-hidden rounded-2xl border border-border bg-card shadow-[0_10px_40px_rgba(0,0,0,0.1)] outline-none animate-in fade-in zoom-in-95 duration-200">
-            <div className="max-h-60 overflow-y-auto p-1.5 scrollbar-thin">
+          <div className="absolute z-50 mt-3 w-full overflow-hidden rounded-[2rem] border border-border/80 bg-card/80 backdrop-blur-xl shadow-[0_20px_50px_rgba(0,0,0,0.3)] outline-none animate-in fade-in zoom-in-95 slide-in-from-top-2 duration-300">
+            <div className="max-h-60 overflow-y-auto p-2.5 custom-scrollbar">
               {options.map((option) => (
                 <button
                   key={option.value}
@@ -65,9 +70,9 @@ export function CustomDropdown({ options, value, onChange, label, className }: C
                     setIsOpen(false);
                   }}
                   className={cn(
-                    "flex w-full items-center justify-between rounded-lg px-3 py-2 text-xs font-medium transition-all",
+                    "flex w-full items-center justify-between rounded-xl px-4 py-3 text-xs font-semibold transition-all mb-1 last:mb-0",
                     option.value === value
-                      ? "bg-brand-purple text-white font-semibold"
+                      ? "bg-brand-purple text-white shadow-md shadow-brand-purple/20"
                       : "text-muted hover:bg-brand-purple/10 hover:text-brand-purple"
                   )}
                 >
@@ -75,6 +80,11 @@ export function CustomDropdown({ options, value, onChange, label, className }: C
                   {option.value === value && <Check className="h-3.5 w-3.5" />}
                 </button>
               ))}
+              {options.length === 0 && (
+                <div className="p-4 text-center text-[10px] text-muted font-medium italic">
+                  No options available
+                </div>
+              )}
             </div>
           </div>
         )}

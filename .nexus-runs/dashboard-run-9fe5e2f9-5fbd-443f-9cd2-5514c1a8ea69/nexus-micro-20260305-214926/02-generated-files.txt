@@ -1,0 +1,12 @@
+﻿package.json
+src\index.js
+src\App.js
+src\store\index.js
+src\store\reducers\menuReducer.js
+src\store\reducers\orderReducer.js
+src\store\reducers\reservationReducer.js
+src\pages\Home.js
+src\pages\Menu.js
+src\pages\Orders.js
+src\pages\Reservations.js
+src\index.css

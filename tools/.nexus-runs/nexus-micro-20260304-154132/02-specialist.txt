@@ -1,0 +1,16 @@
+﻿<<<FILE:index.html>>>
+<!doctype html>
+<html><body><h1>Todo</h1></body></html>
+<<<END FILE>>>
+<<<FILE:style.css>>>
+body { font-family: sans-serif; }
+<<<END FILE>>>
+<<<FILE:app.js>>>
+console.log('todo');
+<<<END FILE>>>
+<<<FILE:README.md>>>
+Run by opening index.html
+<<<END FILE>>>
+<<<RUN>>>
+Open index.html in a browser.
+<<<END RUN>>>

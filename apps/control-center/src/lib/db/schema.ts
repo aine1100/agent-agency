@@ -119,16 +119,19 @@ export const runStep = pgTable("run_step", {
 export const runLog = pgTable("run_log", {
 	id: text("id").primaryKey(),
 	runId: text("runId").notNull().references(() => run.id, { onDelete: "cascade" }),
+	stepKey: text("stepKey"),
 	level: text("level").default("info").notNull(),
 	message: text("message").notNull(),
 	createdAt: timestamp("createdAt").defaultNow().notNull(),
 }, (table) => [{
 	runIdCreatedAtIdx: index("run_log_runId_createdAt_idx").on(table.runId, table.createdAt),
+	runIdStepKeyIdx: index("run_log_runId_stepKey_idx").on(table.runId, table.stepKey),
 }]);
 
 export const artifact = pgTable("artifact", {
 	id: text("id").primaryKey(),
 	runId: text("runId").notNull().references(() => run.id, { onDelete: "cascade" }),
+	stepKey: text("stepKey"),
 	path: text("path").notNull(),
 	kind: text("kind").notNull(),
 	size: integer("size"),

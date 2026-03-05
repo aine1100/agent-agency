@@ -1,6 +1,7 @@
 "use client";
 
 import * as React from "react";
+import { useSearchParams } from "next/navigation";
 import { Sparkles, Send, BrainCircuit, TrendingUp, Search, Zap } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -12,11 +13,20 @@ const suggestions = [
 ];
 
 export function AICommandCenter() {
+  const searchParams = useSearchParams();
   const [command, setCommand] = React.useState("");
   const [isThinking, setIsThinking] = React.useState(false);
-  const [conversationId, setConversationId] = React.useState<string | null>(null);
+  const [conversationId, setConversationId] = React.useState<string | null>(searchParams.get("id"));
   const [messages, setMessages] = React.useState<{ role: string; content: string }[]>([]);
   const [recentTalks, setRecentTalks] = React.useState<{ id: string; title: string; createdAt: string; updatedAt: string; messages: { content: string }[] }[]>([]);
+  const scrollRef = React.useRef<HTMLDivElement>(null);
+
+  // Auto-scroll to bottom
+  React.useEffect(() => {
+    if (scrollRef.current) {
+      scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
+    }
+  }, [messages]);
 
   // Fetch recent talks on mount
   React.useEffect(() => {
@@ -25,8 +35,11 @@ export function AICommandCenter() {
       .then(data => {
         if (Array.isArray(data)) {
           setRecentTalks(data);
-          // Auto-load most recent if available
-          if (data.length > 0 && !conversationId) {
+          // If we have a conversationId from URL, load it
+          if (conversationId) {
+            selectConversation(conversationId);
+          } else if (data.length > 0) {
+            // Otherwise auto-load most recent
             selectConversation(data[0].id);
           }
         }
@@ -73,16 +86,16 @@ export function AICommandCenter() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ content: currentCommand, conversationId }),
       });
-      
+
       const data = await res.json();
-      
+
       if (data.message) {
         setMessages(prev => [...prev, { role: "assistant", content: data.message }]);
         // Refresh list
         const listRes = await fetch("/api/chat");
         const listData = await listRes.json();
         if (Array.isArray(listData)) setRecentTalks(listData);
-        
+
         if (!conversationId && data.conversationId) {
           setConversationId(data.conversationId);
         }
@@ -113,7 +126,7 @@ export function AICommandCenter() {
       <div className="flex flex-col rounded-3xl border border-border bg-card/50 overflow-hidden shadow-sm">
         <div className="p-4 border-b border-border bg-card flex items-center justify-between">
           <h3 className="text-[10px] font-semibold text-muted uppercase tracking-wider">Recent Talks</h3>
-          <button 
+          <button
             onClick={startNewTalk}
             className="p-1 rounded-lg hover:bg-muted text-muted hover:text-brand-purple transition-all"
             title="New Talk"
@@ -164,7 +177,10 @@ export function AICommandCenter() {
 
       {/* Main Chat Interface */}
       <div className="flex flex-col rounded-[2.5rem] border border-border bg-card shadow-sm overflow-hidden relative">
-        <div className="flex-1 overflow-y-auto p-8 space-y-8 custom-scrollbar relative">
+        <div 
+          ref={scrollRef}
+          className="flex-1 overflow-y-auto p-8 space-y-8 custom-scrollbar relative"
+        >
           {messages.length === 0 ? (
             <div className="flex flex-col items-center justify-center h-full text-center space-y-8 animate-in fade-in duration-700">
               <div className="h-16 w-16 rounded-[2rem] bg-brand-purple/10 flex items-center justify-center text-brand-purple shadow-[0_0_30px_rgba(124,58,237,0.1)]">
@@ -203,13 +219,13 @@ export function AICommandCenter() {
             <div className="space-y-6">
               {messages.map((msg, idx) => {
                 const runMatch = msg.content.match(/\[Nexus-Micro Orchestration Started: #([a-f0-9]{8})\]/);
-                const displayContent = runMatch 
-                  ? msg.content.replace(runMatch[0], "").trim() 
+                const displayContent = runMatch
+                  ? msg.content.replace(runMatch[0], "").trim()
                   : msg.content;
 
                 return (
-                  <div 
-                    key={idx} 
+                  <div
+                    key={idx}
                     className={cn(
                       "flex flex-col gap-2 max-w-[85%] animate-in slide-in-from-bottom-2 duration-300",
                       msg.role === "user" ? "ml-auto items-end" : "items-start"
@@ -217,8 +233,8 @@ export function AICommandCenter() {
                   >
                     <div className={cn(
                       "rounded-2xl px-4 py-3 text-sm font-medium leading-relaxed",
-                      msg.role === "user" 
-                        ? "bg-brand-purple text-white shadow-lg shadow-brand-purple/10" 
+                      msg.role === "user"
+                        ? "bg-brand-purple text-white shadow-lg shadow-brand-purple/10"
                         : "bg-muted/5 border border-border text-foreground text-foreground/90 whitespace-pre-wrap"
                     )}>
                       {displayContent}
@@ -233,8 +249,8 @@ export function AICommandCenter() {
                               <span className="text-[10px] text-muted font-medium">Run ID</span>
                               <span className="text-xs font-semibold text-foreground">#{runMatch[1]}</span>
                             </div>
-                            <a 
-                              href="/dashboard/runs" 
+                            <a
+                              href="/dashboard/runs"
                               className="px-3 py-1.5 bg-brand-purple text-white text-[10px] font-semibold rounded-lg hover:bg-brand-purple/90 transition-colors shadow-sm"
                             >
                               Monitor
