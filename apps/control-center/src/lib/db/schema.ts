@@ -74,6 +74,8 @@ export const workflow = pgTable("workflow", {
 	includeMarketing: boolean("includeMarketing").default(true).notNull(),
 	active: boolean("active").default(true).notNull(),
 	tags: text("tags").array(),
+	nodes: jsonb("nodes"),
+	edges: jsonb("edges"),
 	createdAt: timestamp("createdAt").defaultNow().notNull(),
 	updatedAt: timestamp("updatedAt").notNull(),
 });

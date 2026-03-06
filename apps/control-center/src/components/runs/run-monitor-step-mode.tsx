@@ -22,7 +22,10 @@ import {
   ExternalLink,
   ChevronDown,
   File,
-  FolderOpen
+  FolderOpen,
+  Maximize2,
+  Minimize2,
+  Columns
 } from "lucide-react";
 import { useEffect, useMemo, useState, useRef } from "react";
 import { RunStatusBadge } from "@/components/runs/run-status-badge";
@@ -46,9 +49,13 @@ const activeStatuses: (typeof schema.runStatusEnum.enumValues)[number][] = [
   "RUNNING",
 ];
 
+import { marked } from "marked";
+import DOMPurify from "dompurify";
+
 function SourcePreview({ runId, path }: { runId: string, path: string }) {
   const [content, setContent] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
+  const isMarkdown = path.toLowerCase().endsWith(".md");
 
   useEffect(() => {
     let active = true;
@@ -76,21 +83,31 @@ function SourcePreview({ runId, path }: { runId: string, path: string }) {
     </div>
   );
 
+  if (isMarkdown && content) {
+    const html = DOMPurify.sanitize(marked.parse(content) as string);
+    return (
+      <div
+        className="prose prose-invert prose-sm max-w-none p-8 overflow-auto h-full"
+        dangerouslySetInnerHTML={{ __html: html }}
+      />
+    );
+  }
+
   return (
-    <pre className="text-[11px] font-mono text-zinc-300 whitespace-pre leading-relaxed p-6 overflow-auto">
+    <pre className="text-[11px] font-mono text-zinc-300 whitespace-pre leading-relaxed p-6 overflow-auto h-full">
       {content || "No source content available."}
     </pre>
   );
 }
 
-function FolderTree({ 
-  items, 
-  onSelect, 
-  selectedPath, 
-  level = 0 
-}: { 
-  items: (typeof schema.artifact.$inferSelect)[], 
-  onSelect: (path: string) => void, 
+function FolderTree({
+  items,
+  onSelect,
+  selectedPath,
+  level = 0
+}: {
+  items: (typeof schema.artifact.$inferSelect)[],
+  onSelect: (path: string) => void,
   selectedPath: string | null,
   level?: number
 }) {
@@ -120,7 +137,7 @@ function FolderTree({
     return (
       <div key={fullPath} className="space-y-1">
         {name !== "" && (
-          <button 
+          <button
             onClick={() => setExpandedFolders(prev => ({ ...prev, [fullPath]: !prev[fullPath] }))}
             className="flex items-center gap-2 w-full p-2 hover:bg-muted/50 rounded-xl transition-colors text-left group"
             style={{ paddingLeft: `${level * 12 + 8}px` }}
@@ -130,7 +147,7 @@ function FolderTree({
             <span className="text-[11px] font-bold text-muted group-hover:text-foreground">{name}</span>
           </button>
         )}
-        
+
         {(isExpanded || name === "") && (
           <div className="space-y-1">
             {subfolders.map(sf => renderNode(node[sf], sf, fullPath))}
@@ -140,8 +157,8 @@ function FolderTree({
                 onClick={() => onSelect(file.path)}
                 className={cn(
                   "flex items-center gap-3 w-full p-2 rounded-xl transition-all text-left group",
-                  selectedPath === file.path 
-                    ? "bg-brand-purple/10 text-brand-purple" 
+                  selectedPath === file.path
+                    ? "bg-brand-purple/10 text-brand-purple"
                     : "hover:bg-muted/30 text-muted hover:text-foreground"
                 )}
                 style={{ paddingLeft: `${(level + 1) * 12 + 8}px` }}
@@ -166,6 +183,8 @@ export function RunMonitorStepMode({ runId, initialRun }: RunMonitorStepModeProp
   const [run, setRun] = useState(initialRun);
   const [selectedStepKey, setSelectedStepKey] = useState<string | null>(null);
   const [selectedPath, setSelectedPath] = useState<string | null>(null);
+  const [workspaceView, setWorkspaceView] = useState<"code" | "preview" | "split">("split");
+  const [isWide, setIsWide] = useState(false);
   const [actionLoading, setActionLoading] = useState<"cancel" | "retry" | null>(null);
   const logsEndRef = useRef<HTMLDivElement>(null);
 
@@ -391,93 +410,178 @@ export function RunMonitorStepMode({ runId, initialRun }: RunMonitorStepModeProp
             </div>
           </div>
 
-          <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 h-[700px]">
-            {/* Log Terminal for Step */}
-            <div className="lg:col-span-8 flex flex-col bg-card rounded-[2.5rem] border border-border overflow-hidden shadow-sm">
-              <header className="px-8 py-5 border-b border-border bg-muted/30 flex items-center justify-between">
-                <div className="flex items-center gap-3">
-                  <div className="h-2 w-2 rounded-full bg-brand-purple animate-pulse" />
-                  <h3 className="text-xs font-bold uppercase tracking-[0.2em] text-foreground">Active Phase Trace</h3>
-                </div>
-                <div className="text-[10px] font-bold text-muted uppercase">{stepLogs.length} LOGS GENERATED</div>
-              </header>
-              <div className="flex-1 bg-[#09090b] p-8 font-mono text-[11px] overflow-auto custom-scrollbar">
-                {stepLogs.length === 0 ? (
-                  <div className="h-full flex flex-col items-center justify-center opacity-30 gap-4">
-                    <Search className="h-8 w-8" />
-                    <p className="italic uppercase tracking-widest text-[9px]">Awaiting Phase Telemetry...</p>
+          <div className={cn(
+            "grid grid-cols-1 gap-8 transition-all duration-500",
+            isWide ? "lg:grid-cols-1" : "lg:grid-cols-12"
+          )}>
+            {/* Log Terminal for Step - Hidden or Collapsed in Wide View */}
+            {!isWide && (
+              <div className="lg:col-span-4 flex flex-col bg-card rounded-[2.5rem] border border-border overflow-hidden shadow-sm h-[700px]">
+                <header className="px-8 py-5 border-b border-border bg-muted/30 flex items-center justify-between">
+                  <div className="flex items-center gap-3">
+                    <div className="h-2 w-2 rounded-full bg-brand-purple animate-pulse" />
+                    <h3 className="text-xs font-bold uppercase tracking-[0.2em] text-foreground">Phase Trace</h3>
                   </div>
-                ) : (
-                  stepLogs.map((log, i) => (
-                    <div key={i} className="mb-3 last:mb-0 flex gap-6 group">
-                      <span className="text-muted/20 select-none font-bold group-hover:text-muted/40 transition-colors">
-                        {new Date(log.createdAt).toLocaleTimeString([], { hour12: false, hour: '2-digit', minute: '2-digit', second: '2-digit' })}
-                      </span>
-                      <span className={cn(
-                        "break-all leading-relaxed",
-                        log.level === "error" ? "text-status-red" :
-                          log.level === "warn" ? "text-status-orange" : "text-zinc-400 group-hover:text-zinc-200 transition-colors"
-                      )}>{log.message}</span>
-                    </div>
-                  ))
-                )}
-                <div ref={logsEndRef} />
-              </div>
-            </div>
-
-            {/* Artifacts & Preview for Step */}
-            <div className="lg:col-span-4 flex flex-col gap-6">
-              <section className="flex-1 bg-card rounded-[2.5rem] border border-border overflow-hidden flex flex-col pb-6">
-                <header className="px-8 py-5 border-b border-border bg-muted/30">
-                  <h3 className="text-xs font-bold uppercase tracking-[0.2em] text-foreground">Phase Assets</h3>
                 </header>
-                <div className="flex-1 overflow-auto p-4 custom-scrollbar">
-                  {stepArtifacts.length === 0 ? (
-                    <div className="h-full flex flex-col items-center justify-center border-2 border-dashed border-border rounded-[2rem] opacity-30 p-8 text-center gap-4">
-                      <FolderTreeIcon className="h-8 w-8" />
-                      <p className="text-[9px] font-bold uppercase tracking-widest leading-relaxed">No artifacts surfaced in this protocol phase.</p>
+                <div className="flex-1 bg-[#09090b] p-6 font-mono text-[10px] overflow-auto custom-scrollbar">
+                  {stepLogs.length === 0 ? (
+                    <div className="h-full flex flex-col items-center justify-center opacity-30 gap-4">
+                      <Search className="h-8 w-8" />
+                      <p className="italic uppercase tracking-widest text-[8px]">Awaiting Telemetry...</p>
                     </div>
                   ) : (
-                    <FolderTree 
-                      items={stepArtifacts} 
-                      onSelect={(path) => setSelectedPath(selectedPath === path ? null : path)}
-                      selectedPath={selectedPath}
-                    />
+                    stepLogs.map((log, i) => (
+                      <div key={i} className="mb-2 last:mb-0 flex gap-4 group">
+                        <span className="text-muted/20 select-none group-hover:text-muted/40 transition-colors shrink-0">
+                          {new Date(log.createdAt).toLocaleTimeString([], { hour12: false, hour: '2-digit', minute: '2-digit', second: '2-digit' })}
+                        </span>
+                        <span className={cn(
+                          "break-all",
+                          log.level === "error" ? "text-status-red" :
+                            log.level === "warn" ? "text-status-orange" : "text-zinc-500 group-hover:text-zinc-300 transition-colors"
+                        )}>{log.message}</span>
+                      </div>
+                    ))
                   )}
+                  <div ref={logsEndRef} />
                 </div>
-                {selectedPath && (
-                  <div className="p-4 border-t border-border bg-muted/20">
-                    <div className="bg-white rounded-3xl border border-border overflow-hidden shadow-2xl">
-                      {selectedPath.endsWith(".html") || selectedPath.endsWith(".htm") || selectedPath.endsWith(".svg") ? (
-                        <div className="h-80 relative">
-                          <iframe
-                            src={`/api/runs/${runId}/raw/${selectedPath}`}
-                            className="w-full h-full border-none"
-                            title="Step Preview"
-                            sandbox="allow-scripts allow-forms allow-same-origin"
-                          />
-                          <div className="absolute top-2 right-2">
-                            <a
-                              href={`/api/runs/${runId}/raw/${selectedPath}`}
-                              target="_blank"
-                              className="flex h-8 w-8 items-center justify-center rounded-xl bg-black/60 text-white hover:bg-black transition-colors backdrop-blur-md"
-                            >
-                              <ExternalLink className="h-3.5 w-3.5" />
-                            </a>
-                          </div>
+              </div>
+            )}
+
+            {/* Artifacts & Workspace for Step */}
+            <div className={cn(
+              "flex flex-col gap-6",
+              isWide ? "col-span-1" : "lg:col-span-8"
+            )}>
+              <section className="h-[700px] bg-card rounded-[2.5rem] border border-border overflow-hidden flex flex-col shadow-xl transition-all duration-500">
+                <header className="px-8 py-4 border-b border-border bg-muted/20 flex items-center justify-between shrink-0">
+                  <div className="flex items-center gap-6">
+                    <div className="flex items-center gap-3">
+                      <FolderTreeIcon className="h-4 w-4 text-brand-purple" />
+                      <h3 className="text-xs font-bold uppercase tracking-[0.2em] text-foreground">Workspace</h3>
+                    </div>
+                    {selectedPath && (
+                      <div className="flex items-center bg-background rounded-full p-1 border border-border shadow-inner">
+                        {[
+                          { id: 'code', label: 'Source', icon: FileCode },
+                          { id: 'preview', label: 'Preview', icon: Eye },
+                          { id: 'split', label: 'Split', icon: Columns },
+                        ].map(tab => (
+                          <button
+                            key={tab.id}
+                            onClick={() => setWorkspaceView(tab.id as any)}
+                            className={cn(
+                              "flex items-center gap-2 px-4 py-1.5 rounded-full text-[10px] font-bold uppercase tracking-wider transition-all",
+                              workspaceView === tab.id ? "bg-brand-purple text-white shadow-md" : "text-muted hover:text-foreground hover:bg-muted/50"
+                            )}
+                          >
+                            <tab.icon className="h-3 w-3" />
+                            {tab.label}
+                          </button>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <button
+                      onClick={() => setIsWide(!isWide)}
+                      className="h-9 w-9 flex items-center justify-center rounded-xl border border-border bg-background hover:bg-muted transition-all text-muted hover:text-brand-purple"
+                      title={isWide ? "Classic View" : "Large Perspective"}
+                    >
+                      {isWide ? <Minimize2 className="h-4 w-4" /> : <Maximize2 className="h-4 w-4" />}
+                    </button>
+                  </div>
+                </header>
+
+                <div className="flex-1 flex overflow-hidden">
+                  {/* Artifact Navigation Sidebar */}
+                  <div className="w-64 border-r border-border bg-muted/5 overflow-y-auto custom-scrollbar shrink-0">
+                    <div className="p-4">
+                      {stepArtifacts.length === 0 ? (
+                        <div className="flex flex-col items-center justify-center py-12 opacity-30 text-center gap-4">
+                          <AlertCircle className="h-6 w-6" />
+                          <p className="text-[9px] font-bold uppercase tracking-widest">No Assets</p>
                         </div>
                       ) : (
-                        <div className="bg-[#09090b] max-h-80 overflow-auto custom-scrollbar">
-                          <header className="p-4 border-b border-white/5 flex items-center justify-between sticky top-0 bg-[#09090b] z-10">
-                            <p className="text-[9px] font-mono text-zinc-500 uppercase tracking-widest">/ {selectedPath}</p>
-                            <FileCode className="h-3 w-3 text-zinc-600" />
-                          </header>
-                          <SourcePreview runId={runId} path={selectedPath} />
-                        </div>
+                        <FolderTree
+                          items={stepArtifacts}
+                          onSelect={(path) => setSelectedPath(selectedPath === path ? null : path)}
+                          selectedPath={selectedPath}
+                        />
                       )}
                     </div>
                   </div>
-                )}
+
+                  {/* Document Viewport */}
+                  <div className="flex-1 bg-background overflow-hidden relative">
+                    {!selectedPath ? (
+                      <div className="h-full flex flex-col items-center justify-center opacity-30 gap-6 animate-in fade-in duration-1000">
+                        <div className="relative">
+                          <Target className="h-16 w-16 text-brand-purple animate-pulse" />
+                          <Search className="h-8 w-8 absolute -bottom-2 -right-2 text-foreground" />
+                        </div>
+                        <div className="text-center space-y-2">
+                          <p className="text-[10px] font-bold uppercase tracking-[0.3em]">Awaiting Selection</p>
+                          <p className="text-[9px] text-muted max-w-[150px] leading-relaxed">Select a mission asset from the repository to initiate deep-dive inspection.</p>
+                        </div>
+                      </div>
+                    ) : (
+                      <div className="h-full flex flex-col overflow-hidden animate-in fade-in slide-in-from-right-4 duration-500">
+                        <header className="px-6 py-3 border-b border-border bg-muted/5 flex items-center justify-between shrink-0">
+                          <p className="text-[10px] font-mono text-muted uppercase tracking-widest truncate">/ {selectedPath}</p>
+                          <div className="flex items-center gap-4">
+                            {(selectedPath.endsWith(".html") || selectedPath.endsWith(".htm") || selectedPath.endsWith(".svg")) && (
+                              <a
+                                href={`/api/runs/${runId}/raw/${selectedPath}`}
+                                target="_blank"
+                                className="flex items-center gap-2 text-[10px] font-bold text-brand-purple hover:underline"
+                              >
+                                <ExternalLink className="h-3 w-3" />
+                                POP OUT
+                              </a>
+                            )}
+                          </div>
+                        </header>
+
+                        <div className={cn(
+                          "flex-1 overflow-hidden",
+                          workspaceView === "split" ? "grid grid-cols-2" : "block"
+                        )}>
+                          {/* Code Side */}
+                          {(workspaceView === "code" || workspaceView === "split") && (
+                            <div className={cn(
+                              "h-full overflow-hidden bg-[#09090b] relative",
+                              workspaceView === "split" ? "border-r border-border" : ""
+                            )}>
+                              <SourcePreview runId={runId} path={selectedPath} />
+                            </div>
+                          )}
+
+                          {/* Preview Side */}
+                          {(workspaceView === "preview" || workspaceView === "split") && (
+                            <div className="h-full overflow-hidden bg-white/50 relative">
+                              {selectedPath.endsWith(".html") || selectedPath.endsWith(".htm") || selectedPath.endsWith(".svg") ? (
+                                <iframe
+                                  src={`/api/runs/${runId}/raw/${selectedPath}`}
+                                  className="w-full h-full border-none bg-white"
+                                  title="App Preview"
+                                  sandbox="allow-scripts allow-forms allow-same-origin"
+                                />
+                              ) : (
+                                <div className="h-full flex flex-col items-center justify-center opacity-40 p-12 text-center gap-4">
+                                  <FileCode className="h-8 w-8 text-brand-purple" />
+                                  <p className="text-[10px] font-bold uppercase tracking-widest leading-relaxed">
+                                    Visual preview unavailable for this asset type. Switch to Source view for detailed inspection.
+                                  </p>
+                                </div>
+                              )}
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                </div>
               </section>
             </div>
           </div>

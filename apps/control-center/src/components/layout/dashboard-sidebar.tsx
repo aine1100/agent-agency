@@ -23,8 +23,8 @@ const sections = [
   {
     title: "MAIN MENU",
     items: [
-      { href: "/dashboard/chat", label: "AI Chat", icon: Sparkles },
       { href: "/dashboard", label: "Overview", icon: Home },
+      { href: "/dashboard/chat", label: "AI Chat", icon: Sparkles },
       { href: "/dashboard/workflows", label: "Workflows", icon: Layers },
       { href: "/dashboard/runs", label: "Run History", icon: History },
     ]
@@ -115,7 +115,7 @@ export function DashboardSidebar({ session }: { session: AuthSession }) {
           <HelpCircle className="h-4 w-4" />
           Support Help
         </button>
-        <button 
+        <button
           onClick={handleSignOut}
           className="flex w-full items-center gap-3 rounded-xl px-3 py-2 text-sm font-medium text-muted hover:bg-white/5 hover:text-status-red transition-all"
         >

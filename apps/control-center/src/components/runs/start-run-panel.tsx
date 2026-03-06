@@ -12,6 +12,7 @@ type ProviderType = (typeof schema.providerTypeEnum.enumValues)[number];
 
 type StartRunPanelProps = {
   workflows: Workflow[];
+  initialWorkflowId?: string;
 };
 
 type ProviderChoice = "openai" | "ollama";
@@ -20,10 +21,10 @@ function providerToChoice(provider: ProviderType): ProviderChoice {
   return provider === "OPENAI" ? "openai" : "ollama";
 }
 
-export function StartRunPanel({ workflows }: StartRunPanelProps) {
+export function StartRunPanel({ workflows, initialWorkflowId }: StartRunPanelProps) {
   const router = useRouter();
   const [selectedWorkflowId, setSelectedWorkflowId] = useState(
-    workflows[0]?.id ?? "",
+    initialWorkflowId ?? workflows[0]?.id ?? "",
   );
   const [provider, setProvider] = useState<ProviderChoice>(
     workflows[0] ? providerToChoice(workflows[0].defaultProvider) : "openai",

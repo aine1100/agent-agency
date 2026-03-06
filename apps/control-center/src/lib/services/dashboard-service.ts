@@ -1,4 +1,6 @@
 import { History, Layers, TerminalSquare, TrendingUp, Sparkles } from "lucide-react";
+import fs from "fs/promises";
+import path from "path";
 import { db } from "@/lib/db";
 import * as schema from "@/lib/db/schema";
 import { eq, desc, asc } from "drizzle-orm";
@@ -8,6 +10,15 @@ export type DashboardStats = {
     value: string | number;
     icon: any;
     color: string;
+};
+
+export type AgentMetadata = {
+    id: string;
+    name: string;
+    description: string;
+    color: string;
+    division: string;
+    filePath: string;
 };
 
 export type RecentRun = {
@@ -106,6 +117,76 @@ export async function getRecentAIActivity(userId: string) {
     }));
 }
 
+export async function getAvailableAgents(): Promise<AgentMetadata[]> {
+    const rootDir = path.join(process.cwd(), "..", "..");
+    const divisions = [
+        "design", "engineering", "marketing", "product", 
+        "project-management", "spatial-computing", "specialized", 
+        "strategy", "support", "testing"
+    ];
+    
+    const agents: AgentMetadata[] = [];
+
+    for (const division of divisions) {
+        const divisionPath = path.join(rootDir, division);
+        try {
+            const files = await fs.readdir(divisionPath);
+            for (const file of files) {
+                if (file.endsWith(".md") && file !== "README.md") {
+                    const filePath = path.join(divisionPath, file);
+                    const content = await fs.readFile(filePath, "utf8");
+                    
+                    // Simple frontmatter parser
+                    const fmMatch = content.match(/^---\s*\n([\s\S]*?)\n---/);
+                    if (fmMatch) {
+                        const fm = fmMatch[1];
+                        const metadata: any = {};
+                        fm.split("\n").forEach(line => {
+                            const [key, ...valueParts] = line.split(":");
+                            if (key && valueParts.length > 0) {
+                                metadata[key.trim()] = valueParts.join(":").trim();
+                            }
+                        });
+
+                        agents.push({
+                            id: metadata.name?.toLowerCase().replace(/\s+/g, "-") || file.replace(".md", ""),
+                            name: metadata.name || file.replace(".md", "").split("-").map((s: string) => s.charAt(0) + s.slice(1)).join(" "),
+                            description: metadata.description || "",
+                            color: metadata.color || "purple",
+                            division,
+                            filePath: path.join(division, file)
+                        });
+                    }
+                }
+            }
+        } catch (error) {
+            console.warn(`Could not read division ${division}:`, error);
+        }
+    }
+
+    return agents;
+}
+
+export async function createWorkflow(data: Partial<Workflow>) {
+    const id = `wf_${Math.random().toString(36).substring(2, 9)}`;
+    const now = new Date();
+    await db.insert(schema.workflow).values({
+        id,
+        name: data.name || "New Workflow",
+        slug: data.slug || id,
+        description: data.description || "",
+        objectiveTemplate: data.objectiveTemplate || "Generate a {type} project for {description}",
+        defaultDomainAgent: data.defaultDomainAgent || "Specialist",
+        defaultProvider: data.defaultProvider || "OPENAI",
+        defaultModel: data.defaultModel || "gpt-4o-mini",
+        includeMarketing: data.includeMarketing ?? true,
+        active: true,
+        updatedAt: now,
+        createdAt: now,
+    } as any);
+    return id;
+}
+
 export async function getWorkflows(): Promise<Workflow[]> {
     const workflows = await db.query.workflow.findMany({
         orderBy: [desc(schema.workflow.createdAt)],
@@ -113,9 +194,56 @@ export async function getWorkflows(): Promise<Workflow[]> {
     return workflows as Workflow[];
 }
 
+export async function getWorkflowDetail(id: string): Promise<Workflow | null> {
+    const wf = await db.query.workflow.findFirst({
+        where: eq(schema.workflow.id, id),
+    });
+    return (wf as Workflow) || null;
+}
+
+export async function saveWorkflowDefinition(id: string, nodes: any, edges: any) {
+    await db
+        .update(schema.workflow)
+        .set({
+            nodes,
+            edges,
+            updatedAt: new Date(),
+        })
+        .where(eq(schema.workflow.id, id));
+}
+
 export async function getRuns(): Promise<Run[]> {
     const runs = await db.query.run.findMany({
         orderBy: [desc(schema.run.createdAt)],
+        with: {
+            workflow: {
+                columns: {
+                    name: true,
+                }
+            },
+            startedBy: {
+                columns: {
+                    name: true,
+                    email: true,
+                }
+            }
+        }
+    });
+
+    return runs.map(r => ({
+        id: r.id,
+        workflowName: r.workflow?.name || "Unknown Workflow",
+        status: r.status as Run["status"],
+        createdAt: r.createdAt,
+        startedBy: r.startedBy ? { name: r.startedBy.name || "Unknown", email: r.startedBy.email || "" } : null,
+    }));
+}
+
+export async function getRunsByWorkflow(workflowId: string): Promise<Run[]> {
+    const runs = await db.query.run.findMany({
+        where: eq(schema.run.workflowId, workflowId),
+        orderBy: [desc(schema.run.createdAt)],
+        limit: 10,
         with: {
             workflow: {
                 columns: {

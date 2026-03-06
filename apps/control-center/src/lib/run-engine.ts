@@ -252,6 +252,155 @@ async function findLatestRunFolder(outputRoot: string) {
   }
 }
 
+function getAgentFileForRole(role: string, customPath?: string) {
+  if (customPath) {
+    return customPath.startsWith("./") ? customPath : `./${customPath}`;
+  }
+  const map: Record<string, string> = {
+    "Orchestrator": "./specialized/agents-orchestrator.md",
+    "Specialist": "./engineering/engineering-frontend-developer.md",
+    "QA": "./testing/testing-evidence-collector.md",
+    "Reality Checker": "./testing/testing-reality-checker.md",
+    "Marketing": "./marketing/marketing-content-creator.md",
+  };
+  return map[role] || map["Specialist"];
+}
+
+async function runAgentStep(
+  runId: string,
+  stepKey: string,
+  agentFile: string,
+  task: string,
+  provider: string,
+  model: string,
+  outputRoot: string
+) {
+  const scriptPath = path.resolve(process.cwd(), "tools/run-agent.ps1");
+  const args = [
+    "-NoProfile",
+    "-ExecutionPolicy",
+    "Bypass",
+    "-File",
+    scriptPath,
+    "-AgentFile",
+    agentFile,
+    "-Task",
+    task,
+    "-Provider",
+    provider,
+    "-Model",
+    model,
+  ];
+
+  await appendLog(runId, `Executing Agent: ${agentFile}`, "info", stepKey);
+
+  return new Promise<string>((resolve, reject) => {
+    const child = spawn("powershell.exe", args, { stdio: ["ignore", "pipe", "pipe"] });
+    let stdout = "";
+    let stderr = "";
+
+    child.stdout.on("data", (data) => {
+      const chunk = data.toString();
+      stdout += chunk;
+      // Also log chunks for visibility
+      void appendLog(runId, chunk.trim(), "info", stepKey);
+    });
+
+    child.stderr.on("data", (data) => {
+      const chunk = data.toString();
+      stderr += chunk;
+      void appendLog(runId, chunk.trim(), "error", stepKey);
+    });
+
+    child.on("close", (code) => {
+      if (code === 0) resolve(stdout.trim());
+      else reject(new Error(`Agent failed with exit code ${code}: ${stderr}`));
+    });
+  });
+}
+
+async function runDynamicPipeline(
+  runId: string,
+  objective: string,
+  provider: (typeof schema.providerTypeEnum.enumValues)[number],
+  model: string,
+  nodes: any[],
+  edges: any[]
+) {
+  await db
+    .update(schema.run)
+    .set({ status: "RUNNING", startedAt: new Date() })
+    .where(eq(schema.run.id, runId));
+
+  const outputRoot = path.resolve(process.cwd(), env.RUN_OUTPUT_ROOT, `dashboard-run-${runId}`);
+  await mkdir(outputRoot, { recursive: true });
+
+  // Determine execution order by following edges from triggers
+  const triggers = nodes.filter(n => n.type === 'trigger');
+  const executionOrder: any[] = [];
+  const visited = new Set<string>();
+  const queue = [...triggers.map(t => t.id)];
+
+  while (queue.length > 0) {
+    const currentId = queue.shift()!;
+    if (visited.has(currentId)) continue;
+    visited.add(currentId);
+
+    const currentNode = nodes.find(n => n.id === currentId);
+    if (currentNode && currentNode.type === 'agent') {
+      executionOrder.push(currentNode);
+    }
+
+    // Follow edges
+    const childrenIds = edges
+      .filter(e => e.source === currentId)
+      .map(e => e.target);
+    
+    queue.push(...childrenIds);
+  }
+
+  // Fallback: if no connections/triggers, run all agents in array order
+  const agentsToRun = executionOrder.length > 0 ? executionOrder : nodes.filter(n => n.type === 'agent');
+
+  let context = objective;
+
+  for (const node of agentsToRun) {
+    const stepKey = node.id;
+    await setRunStepState(runId, stepKey, "RUNNING");
+    
+    try {
+      const agentFile = getAgentFileForRole(node.data?.role || "Specialist", node.data?.filePath);
+      const output = await runAgentStep(
+        runId,
+        stepKey,
+        agentFile,
+        `Objective: ${objective}\n\nContext from previous steps:\n${context.slice(0, 5000)}`,
+        toProviderName(provider),
+        model,
+        outputRoot
+      );
+
+      // Simple context chaining
+      context = output;
+      
+      await setRunStepState(runId, stepKey, "PASSED");
+    } catch (error) {
+      await setRunStepState(runId, stepKey, "FAILED", String(error));
+      throw error;
+    }
+  }
+
+  // Finalize
+  await db
+    .update(schema.run)
+    .set({
+      status: "COMPLETED",
+      verdict: "READY",
+      completedAt: new Date(),
+    })
+    .where(eq(schema.run.id, runId));
+}
+
 async function runRealPipeline(
   runId: string,
   objective: string,
@@ -260,6 +409,17 @@ async function runRealPipeline(
   includeMarketing: boolean,
   dryRun: boolean,
 ) {
+  // Check for dynamic graph definition
+  const runData = await db.query.run.findFirst({
+    where: eq(schema.run.id, runId),
+    with: { workflow: true }
+  });
+
+  if (runData?.workflow?.nodes && Array.isArray(runData.workflow.nodes) && (runData.workflow.nodes as any[]).length > 0) {
+    return runDynamicPipeline(runId, objective, provider, model, runData.workflow.nodes as any[], runData.workflow.edges as any[]);
+  }
+
+  // FALLBACK TO LEGACY SEQUENTIAL RUNNER
   await db
     .update(schema.run)
     .set({
@@ -410,8 +570,54 @@ async function runRealPipeline(
 }
 
 export async function startRun(input: StartRunInput) {
-  const steps = getSteps(input.includeMarketing);
+  const workflow = await db.query.workflow.findFirst({
+    where: eq(schema.workflow.id, input.workflowId),
+  });
+
+  if (!workflow) throw new Error("Workflow not found");
+
   const runId = crypto.randomUUID();
+  let steps: StepDefinition[] = [];
+
+  // Check if we have a dynamic graph defined
+  if (workflow.nodes && Array.isArray(workflow.nodes) && (workflow.nodes as any[]).length > 0) {
+    const nodes = workflow.nodes as any[];
+    const edges = (workflow.edges as any[]) || [];
+    
+    // Determine execution order by following edges from triggers
+    const triggers = nodes.filter(n => n.type === 'trigger');
+    const traversalOrder: any[] = [];
+    const visited = new Set<string>();
+    const queue = [...triggers.map(t => t.id)];
+
+    while (queue.length > 0) {
+      const currentId = queue.shift()!;
+      if (visited.has(currentId)) continue;
+      visited.add(currentId);
+
+      const currentNode = nodes.find(n => n.id === currentId);
+      if (currentNode && currentNode.type === 'agent') {
+        traversalOrder.push(currentNode);
+      }
+
+      const childrenIds = edges
+        .filter(e => e.source === currentId)
+        .map(e => e.target);
+      
+      queue.push(...childrenIds);
+    }
+
+    const agentsToRegister = traversalOrder.length > 0 ? traversalOrder : nodes.filter(n => n.type === 'agent');
+
+    steps = agentsToRegister.map((n, idx) => ({
+      key: n.id,
+      title: n.data?.label || `Agent ${idx + 1}`,
+      order: idx + 1
+    }));
+  } else {
+    // Fallback to hardcoded pipeline
+    steps = getSteps(input.includeMarketing);
+  }
 
   await db.transaction(async (tx) => {
     await tx.insert(schema.run).values({
