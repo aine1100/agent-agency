@@ -1,0 +1,88 @@
+﻿
+[1) Orchestrator] Executing Agent: C:\Users\aine\Downloads\codes\agency-agents\design\design-ui-designer.md
+--------------------------------------------------
+## Execution Plan: Instagram Login Page Clone
+
+### Phase 1: Requirements Gathering
+- **Define functionality**: Identify core features (login form, input validation, and error messages).
+- **Visual reference**: Gather design elements from Instagram for layout and style reference.
+
+### Phase 2: Structure (HTML)
+- **Create basic layout**: Set up HTML structure with a form for username and password.
+- **Add accessibility features**: Ensure input fields and buttons have appropriate labels and ARIA attributes.
+
+### Phase 3: Styling (CSS)
+- **Apply basic styling**: Use CSS to replicate Instagram's UI, including colors, fonts, and button styles.
+- **Responsive design**: Ensure the layout works on various screen sizes.
+
+### Phase 4: Functionality (JavaScript)
+- **Input handling**: Implement JavaScript to capture user input and validate it.
+- **Error handling**: Provide user feedback for incorrect login attempts.
+
+### Phase 5: Testing
+- **Conduct unit tests**: Validate HTML and CSS against design specifications.
+- **User acceptance testing**: Gather feedback on usability and functionality.
+
+### Phase 6: Handoff
+- **Prepare documentation**: Create concise instructions for implementation and further development.
+
+---
+
+## Risk Checklist
+1. **Design Inconsistencies**
+   - Check alignment, colors, and spacing against the original design.
+  
+2. **Accessibility Issues**
+   - Ensure input fields have labels and are navigable via keyboard.
+
+3. **Browser Compatibility**
+   - Test functionality across major browsers (Chrome, Firefox, Safari).
+
+4. **JavaScript Errors**
+   - Validate input handling and error messages to prevent crashes.
+
+5. **Performance** 
+   - Monitor load times and responsiveness of the login form.
+
+6. **Input Validation Failures**
+   - Ensure all user inputs are correctly validated and handled.
+
+---
+
+## Concrete Handoff Instructions for Specialist Agent
+1. **HTML File**: Provide a complete HTML file with a form structure.
+   - Ensure `id` and `name` attributes are clearly defined for input fields.
+     
+2. **CSS File**: Include a CSS file for styling.
+   - Use comments to explain the purpose of each style section.
+
+3. **JavaScript File**: Provide a JS file for interactivity.
+   - Include inline comments to describe the purpose of each function.
+   - Ensure error-handling routines are included to manage invalid input.
+
+4. **Responsiveness**: Provide a brief note on responsive design approach used.
+5. **Testing Instructions**: Outline the testing protocol for the end-user experience.
+
+---
+
+## Success Criteria for QA
+1. **Visual Fidelity**: Ensure the login page is visually consistent with the original Instagram design, achieving at least 95% similarity.
+  
+2. **Functionality**: 
+   - Login form should allow user input and validate credentials (basic validation required).
+   - Display appropriate error messages for incorrect inputs.
+
+3. **Accessibility Compliance**: 
+   - Confirm WCAG AA compliance, especially in terms of color contrast and keyboard navigation.
+
+4. **Cross-Browser Compatibility**: 
+   - Test on all major browsers, ensuring no functionality is broken.
+
+5. **Responsive Behavior**: 
+   - Confirm the layout adapts to mobile and desktop devices effectively.
+
+6. **User Feedback**: Collect feedback from at least 5 users on usability and user experience.
+   
+---
+
+With this plan, you should have a clear path to follow to achieve a functional Instagram login page clone using HTML and JavaScript!

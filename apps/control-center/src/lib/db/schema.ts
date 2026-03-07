@@ -158,6 +158,7 @@ export const conversation = pgTable("conversation", {
 	id: text("id").primaryKey(),
 	userId: text("userId").notNull().references(() => user.id, { onDelete: "cascade" }),
 	title: text("title").notNull(),
+	workflowId: text("workflowId").references(() => workflow.id),
 	createdAt: timestamp("createdAt").defaultNow().notNull(),
 	updatedAt: timestamp("updatedAt").notNull(),
 }, (table) => [{

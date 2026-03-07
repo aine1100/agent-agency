@@ -1,19 +1,15 @@
 <#
 .SYNOPSIS
-Runs a NEXUS-Micro chain in one command:
-  Orchestrator -> Specialist (code files) -> QA -> Reality Checker -> Marketing
-
-.EXAMPLE
-powershell -ExecutionPolicy Bypass -File .\tools\run-nexus-micro.ps1 `
-  -Task "Build a simple todo app" `
-  -Provider openai `
-  -Model gpt-4o-mini
+Main Nexus-Micro orchestration script.
 #>
 
 [CmdletBinding()]
 param(
   [Parameter(Mandatory = $true)]
   [string]$Task,
+
+  [Parameter(Mandatory = $false)]
+  [string]$RunId,
 
   [ValidateSet("openai", "ollama")]
   [string]$Provider = "openai",
@@ -38,6 +34,21 @@ param(
 
   [string]$MarketingOutputDir,
 
+  [string]$OrchestratorProvider,
+  [string]$OrchestratorModel,
+
+  [string]$DomainProvider,
+  [string]$DomainModel,
+
+  [string]$QaProvider,
+  [string]$QaModel,
+
+  [string]$FinalProvider,
+  [string]$FinalModel,
+
+  [string]$MarketingProvider,
+  [string]$MarketingModel,
+
   [switch]$SkipMarketing,
 
   [switch]$StripFrontMatter,
@@ -49,6 +60,16 @@ param(
 
 Set-StrictMode -Version Latest
 $ErrorActionPreference = "Stop"
+
+Write-Output "--- NEXUS-MICRO ORCHESTRATION STARTING ---"
+
+# Step 0: Context Setup
+if ([string]::IsNullOrWhiteSpace($RunId)) {
+  $RunId = [guid]::NewGuid().ToString().Substring(0, 8)
+}
+Write-Output "Mission Identifier: $RunId"
+
+$RunFolder = Join-Path $OutputRoot $RunId
 
 function Resolve-RequiredPath {
   param(
@@ -88,12 +109,10 @@ function Invoke-AgentStep {
     [Parameter(Mandatory = $true)]
     [string]$AgentPath,
     [Parameter(Mandatory = $true)]
-    [string]$StepTask
+    [string]$StepTask,
+    [string]$StepProvider,
+    [string]$StepModel
   )
-
-  Write-Host ""
-  Write-Host "=== $StepName ==="
-  Write-Host "Agent: $AgentPath"
 
   if ($DryRun) {
     return @"
@@ -108,17 +127,20 @@ $(Limit-Text -Text $StepTask -MaxChars 1200)
   Set-Content -Path $stepTaskFile -Value $StepTask -Encoding UTF8
 
   try {
+    $effectiveProvider = if ([string]::IsNullOrWhiteSpace($StepProvider)) { $Provider } else { $StepProvider }
+    $effectiveModel = if ([string]::IsNullOrWhiteSpace($StepModel)) { $Model } else { $StepModel }
+
     $cmd = @(
       "-ExecutionPolicy", "Bypass",
       "-File", $resolvedRunner,
       "-AgentFile", $AgentPath,
       "-TaskFile", $stepTaskFile,
-      "-Provider", $Provider,
+      "-Provider", $effectiveProvider,
       "-TimeoutSec", $TimeoutSec
     )
 
-    if (-not [string]::IsNullOrWhiteSpace($Model)) {
-      $cmd += @("-Model", $Model)
+    if (-not [string]::IsNullOrWhiteSpace($effectiveModel)) {
+      $cmd += @("-Model", $effectiveModel)
     }
     if ($StripFrontMatter) {
       $cmd += "-StripFrontMatter"
@@ -254,8 +276,7 @@ if (-not $SkipMarketing) {
   $resolvedMarketing = Resolve-RequiredPath -Path $MarketingAgentFile -Label "Marketing agent"
 }
 
-$timestamp = Get-Date -Format "yyyyMMdd-HHmmss"
-$runDir = Join-Path $OutputRoot "nexus-micro-$timestamp"
+$runDir = $RunFolder
 New-Item -Path $runDir -ItemType Directory -Force | Out-Null
 
 if ([string]::IsNullOrWhiteSpace($AppOutputDir)) {
@@ -278,9 +299,20 @@ Required output:
 4. Success criteria for QA
 "@
 
-$orchestratorOutput = Invoke-AgentStep -StepName "1) Orchestrator" -AgentPath $resolvedOrchestrator -StepTask $orchestratorTask
+Write-Output ""
+Write-Output "[1) Orchestrator] Executing Agent: $resolvedOrchestrator"
+Write-Output "--------------------------------------------------"
+$orchestratorOutput = Invoke-AgentStep `
+  -StepName "1) Orchestrator" `
+  -AgentPath $resolvedOrchestrator `
+  -StepTask $orchestratorTask `
+  -StepProvider $OrchestratorProvider `
+  -StepModel $OrchestratorModel
 $orchestratorOutput | Set-Content -Path (Join-Path $runDir "01-orchestrator.txt") -Encoding UTF8
 
+Write-Output ""
+Write-Output "[2) Specialist] Executing Agent: $resolvedDomain"
+Write-Output "--------------------------------------------------"
 $domainOutput = Invoke-AgentStep -StepName "2) Specialist" -AgentPath $resolvedDomain -StepTask @"
 You are the implementation specialist for this objective:
 $Task
@@ -302,7 +334,9 @@ Commands to run/test the app locally.
 
 Include all necessary source files, components, styles, and configurations defined in the plan.
 No markdown fences. No explanations outside these blocks.
-"@
+"@ `
+  -StepProvider $DomainProvider `
+  -StepModel $DomainModel
 $domainOutput | Set-Content -Path (Join-Path $runDir "02-specialist.txt") -Encoding UTF8
 
 $generatedFiles = @()
@@ -346,7 +380,15 @@ Return:
 - Exact fixes required if FAIL
 "@
 
-$qaOutput = Invoke-AgentStep -StepName "3) QA" -AgentPath $resolvedQa -StepTask $qaTask
+Write-Output ""
+Write-Output "[3) QA] Executing Agent: $resolvedQa"
+Write-Output "--------------------------------------------------"
+$qaOutput = Invoke-AgentStep `
+  -StepName "3) QA" `
+  -AgentPath $resolvedQa `
+  -StepTask $qaTask `
+  -StepProvider $QaProvider `
+  -StepModel $QaModel
 $qaOutput | Set-Content -Path (Join-Path $runDir "03-qa.txt") -Encoding UTF8
 
 $finalTask = @"
@@ -372,7 +414,15 @@ Return final verdict: READY or NEEDS WORK.
 Include top blockers and next steps.
 "@
 
-$finalOutput = Invoke-AgentStep -StepName "4) Reality Checker" -AgentPath $resolvedFinal -StepTask $finalTask
+Write-Output ""
+Write-Output "[4) Reality Checker] Executing Agent: $resolvedFinal"
+Write-Output "--------------------------------------------------"
+$finalOutput = Invoke-AgentStep `
+  -StepName "4) Reality Checker" `
+  -AgentPath $resolvedFinal `
+  -StepTask $finalTask `
+  -StepProvider $FinalProvider `
+  -StepModel $FinalModel
 $finalOutput | Set-Content -Path (Join-Path $runDir "04-final.txt") -Encoding UTF8
 
 $marketingOutput = ""
@@ -408,7 +458,15 @@ Return markdown and include these file blocks:
 Keep output practical, concise, and execution-ready.
 "@
 
-  $marketingOutput = Invoke-AgentStep -StepName "5) Marketing" -AgentPath $resolvedMarketing -StepTask $marketingTask
+  Write-Output ""
+  Write-Output "[5) Marketing] Executing Agent: $resolvedMarketing"
+  Write-Output "--------------------------------------------------"
+  $marketingOutput = Invoke-AgentStep `
+    -StepName "5) Marketing" `
+    -AgentPath $resolvedMarketing `
+    -StepTask $marketingTask `
+    -StepProvider $MarketingProvider `
+    -StepModel $MarketingModel
   $marketingOutput | Set-Content -Path (Join-Path $runDir "05-marketing.txt") -Encoding UTF8
 
   if (-not $DryRun) {

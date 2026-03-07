@@ -1,4 +1,5 @@
 import { spawn } from "node:child_process";
+import { existsSync } from "node:fs";
 import { mkdir, readFile, readdir, stat, writeFile } from "node:fs/promises";
 import path from "node:path";
 import { env, isMockMode } from "@/lib/env";
@@ -88,7 +89,12 @@ async function collectFiles(rootPath: string) {
   return files;
 }
 
-async function ingestArtifacts(runId: string, artifactRoot: string, fallbackStepKey?: string) {
+async function ingestArtifacts(
+  runId: string,
+  artifactRoot: string,
+  fallbackStepKey?: string,
+  roleToStepKey?: Record<string, string>,
+) {
   const files = await collectFiles(artifactRoot);
   const values: (typeof schema.artifact.$inferInsert)[] = [];
 
@@ -100,11 +106,11 @@ async function ingestArtifacts(runId: string, artifactRoot: string, fallbackStep
     // Determine the most appropriate step for this artifact
     let stepKey = fallbackStepKey;
     if (relativePath.includes("marketing/")) {
-      stepKey = "marketing";
+      stepKey = roleToStepKey?.marketing || "marketing";
     } else if (relativePath.includes("app/") || [".html", ".js", ".jsx", ".tsx", ".css"].includes(extension)) {
-      stepKey = "specialist";
+      stepKey = roleToStepKey?.specialist || "specialist";
     } else if (relativePath.includes("SUMMARY") || relativePath.includes("final")) {
-      stepKey = "reality_checker";
+      stepKey = roleToStepKey?.reality_checker || "reality_checker";
     }
 
     const kind =
@@ -192,7 +198,12 @@ async function runMockPipeline(runId: string, objective: string, includeMarketin
     })
     .where(eq(schema.run.id, runId));
 
-  for (const step of getSteps(includeMarketing)) {
+  const runSteps = await db.query.runStep.findMany({
+    where: eq(schema.runStep.runId, runId),
+    orderBy: [asc(schema.runStep.order)],
+  });
+
+  for (const step of runSteps) {
     await setRunStepState(runId, step.key, "RUNNING");
     await appendLog(runId, `Starting ${step.title}...`, "info", step.key);
     await sleep(1200);
@@ -201,7 +212,7 @@ async function runMockPipeline(runId: string, objective: string, includeMarketin
   }
 
   const artifactRoot = await writeMockArtifacts(runId, objective, includeMarketing);
-  await ingestArtifacts(runId, artifactRoot, "specialist");
+  await ingestArtifacts(runId, artifactRoot, runSteps[1]?.key || "specialist");
   await appendLog(runId, "Artifacts generated.", "info", "specialist");
 
   await db
@@ -252,154 +263,20 @@ async function findLatestRunFolder(outputRoot: string) {
   }
 }
 
-function getAgentFileForRole(role: string, customPath?: string) {
-  if (customPath) {
-    return customPath.startsWith("./") ? customPath : `./${customPath}`;
-  }
-  const map: Record<string, string> = {
-    "Orchestrator": "./specialized/agents-orchestrator.md",
-    "Specialist": "./engineering/engineering-frontend-developer.md",
-    "QA": "./testing/testing-evidence-collector.md",
-    "Reality Checker": "./testing/testing-reality-checker.md",
-    "Marketing": "./marketing/marketing-content-creator.md",
-  };
-  return map[role] || map["Specialist"];
-}
-
-async function runAgentStep(
-  runId: string,
-  stepKey: string,
-  agentFile: string,
-  task: string,
-  provider: string,
-  model: string,
-  outputRoot: string
-) {
-  const scriptPath = path.resolve(process.cwd(), "tools/run-agent.ps1");
-  const args = [
-    "-NoProfile",
-    "-ExecutionPolicy",
-    "Bypass",
-    "-File",
-    scriptPath,
-    "-AgentFile",
-    agentFile,
-    "-Task",
-    task,
-    "-Provider",
-    provider,
-    "-Model",
-    model,
-  ];
-
-  await appendLog(runId, `Executing Agent: ${agentFile}`, "info", stepKey);
-
-  return new Promise<string>((resolve, reject) => {
-    const child = spawn("powershell.exe", args, { stdio: ["ignore", "pipe", "pipe"] });
-    let stdout = "";
-    let stderr = "";
-
-    child.stdout.on("data", (data) => {
-      const chunk = data.toString();
-      stdout += chunk;
-      // Also log chunks for visibility
-      void appendLog(runId, chunk.trim(), "info", stepKey);
-    });
-
-    child.stderr.on("data", (data) => {
-      const chunk = data.toString();
-      stderr += chunk;
-      void appendLog(runId, chunk.trim(), "error", stepKey);
-    });
-
-    child.on("close", (code) => {
-      if (code === 0) resolve(stdout.trim());
-      else reject(new Error(`Agent failed with exit code ${code}: ${stderr}`));
-    });
-  });
-}
-
-async function runDynamicPipeline(
-  runId: string,
-  objective: string,
-  provider: (typeof schema.providerTypeEnum.enumValues)[number],
-  model: string,
-  nodes: any[],
-  edges: any[]
-) {
-  await db
-    .update(schema.run)
-    .set({ status: "RUNNING", startedAt: new Date() })
-    .where(eq(schema.run.id, runId));
-
-  const outputRoot = path.resolve(process.cwd(), env.RUN_OUTPUT_ROOT, `dashboard-run-${runId}`);
-  await mkdir(outputRoot, { recursive: true });
-
-  // Determine execution order by following edges from triggers
-  const triggers = nodes.filter(n => n.type === 'trigger');
-  const executionOrder: any[] = [];
-  const visited = new Set<string>();
-  const queue = [...triggers.map(t => t.id)];
-
-  while (queue.length > 0) {
-    const currentId = queue.shift()!;
-    if (visited.has(currentId)) continue;
-    visited.add(currentId);
-
-    const currentNode = nodes.find(n => n.id === currentId);
-    if (currentNode && currentNode.type === 'agent') {
-      executionOrder.push(currentNode);
-    }
-
-    // Follow edges
-    const childrenIds = edges
-      .filter(e => e.source === currentId)
-      .map(e => e.target);
-    
-    queue.push(...childrenIds);
+async function resolveArtifactRunFolder(outputRoot: string, runId: string) {
+  const runIdShort = runId.split("-")[0];
+  const preferred = path.resolve(outputRoot, runIdShort);
+  if (existsSync(preferred)) {
+    return preferred;
   }
 
-  // Fallback: if no connections/triggers, run all agents in array order
-  const agentsToRun = executionOrder.length > 0 ? executionOrder : nodes.filter(n => n.type === 'agent');
-
-  let context = objective;
-
-  for (const node of agentsToRun) {
-    const stepKey = node.id;
-    await setRunStepState(runId, stepKey, "RUNNING");
-    
-    try {
-      const agentFile = getAgentFileForRole(node.data?.role || "Specialist", node.data?.filePath);
-      const output = await runAgentStep(
-        runId,
-        stepKey,
-        agentFile,
-        `Objective: ${objective}\n\nContext from previous steps:\n${context.slice(0, 5000)}`,
-        toProviderName(provider),
-        model,
-        outputRoot
-      );
-
-      // Simple context chaining
-      context = output;
-      
-      await setRunStepState(runId, stepKey, "PASSED");
-    } catch (error) {
-      await setRunStepState(runId, stepKey, "FAILED", String(error));
-      throw error;
-    }
-  }
-
-  // Finalize
-  await db
-    .update(schema.run)
-    .set({
-      status: "COMPLETED",
-      verdict: "READY",
-      completedAt: new Date(),
-    })
-    .where(eq(schema.run.id, runId));
+  const latest = await findLatestRunFolder(outputRoot);
+  return latest;
 }
+
+// REMOVED runAgentStep as we use run-nexus-micro collectively
+
+// REMOVED runDynamicPipeline as the user prefers using the main nexus-micro script
 
 async function runRealPipeline(
   runId: string,
@@ -409,14 +286,60 @@ async function runRealPipeline(
   includeMarketing: boolean,
   dryRun: boolean,
 ) {
-  // Check for dynamic graph definition
+  console.log(`[runRealPipeline] Starting run ${runId}`);
+  await appendLog(runId, `Initializing orchestration for objective: ${objective}`, "info", "orchestrator");
+
   const runData = await db.query.run.findFirst({
     where: eq(schema.run.id, runId),
     with: { workflow: true }
   });
 
-  if (runData?.workflow?.nodes && Array.isArray(runData.workflow.nodes) && (runData.workflow.nodes as any[]).length > 0) {
-    return runDynamicPipeline(runId, objective, provider, model, runData.workflow.nodes as any[], runData.workflow.edges as any[]);
+  if (!runData) {
+    const err = "Run data not found in database";
+    console.error(`[runRealPipeline] ${err}`);
+    await appendLog(runId, err, "error", "orchestrator");
+    throw new Error(err);
+  }
+
+  // Extract and map workflow agents if present
+  let orchestratorAgent: string | null = null;
+  let domainAgent: string | null = null;
+  let qaAgent: string | null = null;
+  let finalAgent: string | null = null;
+  let marketingAgent: string | null = null;
+
+  let orchestratorConfig: { provider?: string; model?: string } = {};
+  let domainConfig: { provider?: string; model?: string } = {};
+  let qaConfig: { provider?: string; model?: string } = {};
+  let finalConfig: { provider?: string; model?: string } = {};
+  let marketingConfig: { provider?: string; model?: string } = {};
+
+  if (runData?.workflow?.nodes && Array.isArray(runData.workflow.nodes)) {
+     const nodes = runData.workflow.nodes as any[];
+     const agents = nodes.filter(n => n.type === 'agent');
+     
+     // Map by role if available, otherwise by index
+     const findAgent = (role: string) => agents.find(n => n.data?.role === role || n.data?.label?.includes(role));
+     
+     const orchNode = findAgent("Orchestrator") || agents[0];
+     const specNode = findAgent("Specialist") || findAgent("Specialized") || agents[1];
+     const qaNode = findAgent("QA") || agents[2];
+     const finalNode = findAgent("Reality") || findAgent("Final") || agents[3];
+     const markNode = findAgent("Marketing") || agents[4];
+
+     const resolveAgentPath = (p: string | null) => p ? path.resolve(process.cwd(), "../../", p) : null;
+
+     orchestratorAgent = resolveAgentPath(orchNode?.data?.filePath || null);
+     domainAgent = resolveAgentPath(specNode?.data?.filePath || null);
+     qaAgent = resolveAgentPath(qaNode?.data?.filePath || null);
+     finalAgent = resolveAgentPath(finalNode?.data?.filePath || null);
+     marketingAgent = resolveAgentPath(markNode?.data?.filePath || null);
+
+     if (orchNode?.data) orchestratorConfig = { provider: orchNode.data.provider, model: orchNode.data.model };
+     if (specNode?.data) domainConfig = { provider: specNode.data.provider, model: specNode.data.model };
+     if (qaNode?.data) qaConfig = { provider: qaNode.data.provider, model: qaNode.data.model };
+     if (finalNode?.data) finalConfig = { provider: finalNode.data.provider, model: finalNode.data.model };
+     if (markNode?.data) marketingConfig = { provider: markNode.data.provider, model: markNode.data.model };
   }
 
   // FALLBACK TO LEGACY SEQUENTIAL RUNNER
@@ -446,7 +369,64 @@ async function runRealPipeline(
     model,
     "-OutputRoot",
     outputRoot,
+    "-RunId",
+    runId.split("-")[0],
   ];
+
+  // Map Force-Matrix agents to script parameters
+  if (orchestratorAgent) args.push("-OrchestratorAgentFile", orchestratorAgent);
+  if (domainAgent) args.push("-DomainAgentFile", domainAgent);
+  if (qaAgent) args.push("-QaAgentFile", qaAgent);
+  if (finalAgent) args.push("-FinalAgentFile", finalAgent);
+  if (marketingAgent) args.push("-MarketingAgentFile", marketingAgent);
+
+  // Propagate per-agent brain configs
+  if (orchestratorConfig.provider) args.push("-OrchestratorProvider", orchestratorConfig.provider.toLowerCase());
+  if (orchestratorConfig.model) args.push("-OrchestratorModel", orchestratorConfig.model);
+  
+  if (domainConfig.provider) args.push("-DomainProvider", domainConfig.provider.toLowerCase());
+  if (domainConfig.model) args.push("-DomainModel", domainConfig.model);
+
+  if (qaConfig.provider) args.push("-QaProvider", qaConfig.provider.toLowerCase());
+  if (qaConfig.model) args.push("-QaModel", qaConfig.model);
+
+  if (finalConfig.provider) args.push("-FinalProvider", finalConfig.provider.toLowerCase());
+  if (finalConfig.model) args.push("-FinalModel", finalConfig.model);
+
+  if (marketingConfig.provider) args.push("-MarketingProvider", marketingConfig.provider.toLowerCase());
+  if (marketingConfig.model) args.push("-MarketingModel", marketingConfig.model);
+
+  console.log(`[runRealPipeline] Command arguments prepared: ${args.join(" ")}`);
+
+  // Mapping for real-time tracking
+  const roleToStepKey: Record<string, string> = {
+    orchestrator: "orchestrator",
+    specialist: "specialist",
+    qa: "qa",
+    reality_checker: "reality_checker",
+    marketing: "marketing",
+  };
+
+  if (runData?.workflow?.nodes && Array.isArray(runData.workflow.nodes)) {
+    const nodes = runData.workflow.nodes as any[];
+    const agents = nodes.filter((n) => n.type === "agent");
+
+    const findAgentId = (role: string) =>
+      agents.find((n) => n.data?.role === role || n.data?.label?.includes(role))?.id;
+
+    const orchId = findAgentId("Orchestrator") || agents[0]?.id;
+    const specId =
+      findAgentId("Specialist") || findAgentId("Specialized") || agents[1]?.id;
+    const qaId = findAgentId("QA") || agents[2]?.id;
+    const realId = findAgentId("Reality") || findAgentId("Final") || agents[3]?.id;
+    const markId = findAgentId("Marketing") || agents[4]?.id;
+
+    if (orchId) roleToStepKey.orchestrator = orchId;
+    if (specId) roleToStepKey.specialist = specId;
+    if (qaId) roleToStepKey.qa = qaId;
+    if (realId) roleToStepKey.reality_checker = realId;
+    if (markId) roleToStepKey.marketing = markId;
+  }
 
   if (!includeMarketing) {
     args.push("-SkipMarketing");
@@ -455,7 +435,7 @@ async function runRealPipeline(
     args.push("-DryRun");
   }
 
-  await appendLog(runId, `Starting real run via ${scriptPath}`, "info", "orchestrator");
+  await appendLog(runId, `Deploying Orchestration Matrix for: ${objective}`, "info", "orchestrator");
 
   const child = spawn("powershell.exe", args, {
     cwd: process.cwd(),
@@ -465,32 +445,40 @@ async function runRealPipeline(
   let currentStep: string | null = null;
   let stdoutBuffer = "";
   let stderrBuffer = "";
+  let currentDbStepKey: string | null = null;
 
   const handleLine = async (line: string) => {
     if (!line.trim()) return;
-    await appendLog(runId, line.trim(), "info", currentStep || undefined);
-    const stepKey = parseStepFromLine(line);
-    if (stepKey && stepKey !== currentStep) {
-      if (currentStep) {
-        await setRunStepState(runId, currentStep, "PASSED");
-        
-        // Trigger intermediate artifact ingestion when transitioning from specialist
-        if (currentStep === "specialist" || currentStep === "orchestrator") {
-           try {
-             // We use a slight delay to ensure file handles are released by the powershell script
-             await sleep(1000);
-             const runFolder = await findLatestRunFolder(outputRoot);
-             if (runFolder) {
-               await ingestArtifacts(runId, runFolder, currentStep);
-             }
-           } catch (e) {
-             console.error("Intermediate ingestion failed", e);
-           }
+    
+    const roleKey = parseStepFromLine(line);
+    if (roleKey && roleKey !== currentStep) {
+      const dbStepKey = roleToStepKey[roleKey] || roleKey;
+        if (currentStep) {
+          const prevDbKey = roleToStepKey[currentStep] || currentStep;
+          await setRunStepState(runId, prevDbKey, "PASSED");
+
+          // Trigger intermediate artifact ingestion when transitioning
+          if (roleKey === "specialist" || roleKey === "qa" || roleKey === "reality_checker") {
+            try {
+              await sleep(1000);
+              const runFolder = await resolveArtifactRunFolder(outputRoot, runId);
+            
+              if (runFolder && existsSync(runFolder)) {
+                await ingestArtifacts(runId, runFolder, dbStepKey, roleToStepKey);
+              }
+            } catch (e) {
+            console.error("Intermediate ingestion failed", e);
+          }
         }
       }
-      currentStep = stepKey;
-      await setRunStepState(runId, currentStep, "RUNNING");
+      currentStep = roleKey;
+      currentDbStepKey = dbStepKey;
+      await setRunStepState(runId, dbStepKey, "RUNNING");
     }
+
+    // Always log with the latest resolved DB key, fallback to orchestrator for early logs
+    const activeStepKey = currentDbStepKey || roleToStepKey.orchestrator || "orchestrator";
+    await appendLog(runId, line.trim(), "info", activeStepKey);
   };
 
   child.stdout.on("data", (chunk: Buffer) => {
@@ -498,7 +486,10 @@ async function runRealPipeline(
     const lines = stdoutBuffer.split(/\r?\n/);
     stdoutBuffer = lines.pop() ?? "";
     for (const line of lines) {
-      void handleLine(line);
+      void handleLine(line).catch(err => {
+        console.error(`[runRealPipeline] Error handling line: ${err}`);
+        void appendLog(runId, `Internal handler error: ${err}`, "error", currentDbStepKey || undefined);
+      });
     }
   });
 
@@ -507,23 +498,32 @@ async function runRealPipeline(
     const lines = stderrBuffer.split(/\r?\n/);
     stderrBuffer = lines.pop() ?? "";
     for (const line of lines) {
-      void appendLog(runId, line.trim(), "error", currentStep || undefined);
+      const activeStepKey = currentDbStepKey || roleToStepKey.orchestrator || "orchestrator";
+      void appendLog(runId, line.trim(), "error", activeStepKey);
     }
+  });
+
+  child.on("error", (err) => {
+    console.error(`[runRealPipeline] Process spawn error: ${err}`);
+    void appendLog(runId, `Failed to start runner: ${err.message}`, "error", "orchestrator");
   });
 
   await new Promise<void>((resolve) => {
     child.on("close", async (code) => {
+      const activeStepKey = currentDbStepKey || roleToStepKey.orchestrator || "orchestrator";
       if (stdoutBuffer.trim()) {
         await handleLine(stdoutBuffer);
       }
       if (stderrBuffer.trim()) {
-        await appendLog(runId, stderrBuffer.trim(), "error", currentStep || undefined);
+        await appendLog(runId, stderrBuffer.trim(), "error", activeStepKey);
       }
 
       try {
-        const runFolder = await findLatestRunFolder(outputRoot);
-        if (runFolder) {
-          await ingestArtifacts(runId, runFolder, currentStep || "specialist");
+        const runFolder = await resolveArtifactRunFolder(outputRoot, runId);
+        
+        if (runFolder && existsSync(runFolder)) {
+          const finalDbKey = roleToStepKey[currentStep || "specialist"] || (currentStep || "specialist");
+          await ingestArtifacts(runId, runFolder, finalDbKey, roleToStepKey);
           await db
             .update(schema.run)
             .set({ outputRoot: runFolder })
@@ -545,10 +545,10 @@ async function runRealPipeline(
           }
         }
 
-        if (currentStep) {
+        if (currentDbStepKey) {
           await setRunStepState(
             runId,
-            currentStep,
+            currentDbStepKey,
             code === 0 ? "PASSED" : "FAILED",
           );
         }
@@ -579,43 +579,19 @@ export async function startRun(input: StartRunInput) {
   const runId = crypto.randomUUID();
   let steps: StepDefinition[] = [];
 
-  // Check if we have a dynamic graph defined
-  if (workflow.nodes && Array.isArray(workflow.nodes) && (workflow.nodes as any[]).length > 0) {
-    const nodes = workflow.nodes as any[];
-    const edges = (workflow.edges as any[]) || [];
-    
-    // Determine execution order by following edges from triggers
-    const triggers = nodes.filter(n => n.type === 'trigger');
-    const traversalOrder: any[] = [];
-    const visited = new Set<string>();
-    const queue = [...triggers.map(t => t.id)];
-
-    while (queue.length > 0) {
-      const currentId = queue.shift()!;
-      if (visited.has(currentId)) continue;
-      visited.add(currentId);
-
-      const currentNode = nodes.find(n => n.id === currentId);
-      if (currentNode && currentNode.type === 'agent') {
-        traversalOrder.push(currentNode);
-      }
-
-      const childrenIds = edges
-        .filter(e => e.source === currentId)
-        .map(e => e.target);
-      
-      queue.push(...childrenIds);
+  const workflowNodes = workflow.nodes as any[];
+  if (workflowNodes && Array.isArray(workflowNodes)) {
+    const agents = workflowNodes.filter((n) => n.type === "agent");
+    if (agents.length > 0) {
+      steps = agents.map((n, idx) => ({
+        key: n.id,
+        title: n.data?.label || `Agent ${idx + 1}`,
+        order: idx + 1,
+      }));
     }
+  }
 
-    const agentsToRegister = traversalOrder.length > 0 ? traversalOrder : nodes.filter(n => n.type === 'agent');
-
-    steps = agentsToRegister.map((n, idx) => ({
-      key: n.id,
-      title: n.data?.label || `Agent ${idx + 1}`,
-      order: idx + 1
-    }));
-  } else {
-    // Fallback to hardcoded pipeline
+  if (steps.length === 0) {
     steps = getSteps(input.includeMarketing);
   }
 

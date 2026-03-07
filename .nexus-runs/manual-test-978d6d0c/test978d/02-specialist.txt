@@ -1,0 +1,35 @@
+﻿[DRY_RUN] 2) Specialist
+Agent: C:\Users\aine\Downloads\codes\agency-agents\engineering\engineering-backend-architect.md
+Task Preview:
+You are the implementation specialist for this objective:
+make for me a todo app for the student task using html and js
+
+Orchestrator handoff and project plan:
+[DRY_RUN] 1) Orchestrator
+Agent: C:\Users\aine\Downloads\codes\agency-agents\design\design-ui-designer.md
+Task Preview:
+Activate NEXUS-Micro mode.
+
+Objective:
+make for me a todo app for the student task using html and js
+
+Required output:
+1. Execution plan with clear phases
+2. Risk checklist
+3. Concrete handoff instructions for the specialist agent
+4. Success criteria for QA
+
+Build the runnable application now based on the Orchestrator's architecture and requirements. Do not return planning-only output. Do not delegate. Deliver a production-ready implementation.
+
+Format Requirements:
+Return ONLY file blocks in this exact format for every file in the project structure:
+<<<FILE:path/to/file.ext>>>
+...content...
+<<<END FILE>>>
+
+<<<RUN>>>
+Commands to run/test the app locally.
+<<<END RUN>>>
+
+Include all necessary source files, components, styles, and configurations defined in the plan.
+No markdown fences. No explanations outside these blocks.

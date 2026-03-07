@@ -3,7 +3,7 @@ import fs from "fs/promises";
 import path from "path";
 import { db } from "@/lib/db";
 import * as schema from "@/lib/db/schema";
-import { eq, desc, asc } from "drizzle-orm";
+import { eq, desc, asc, like } from "drizzle-orm";
 
 export type DashboardStats = {
     label: string;
@@ -40,6 +40,8 @@ export type Workflow = {
     defaultModel: string;
     includeMarketing: boolean;
     tags: string[] | null;
+    nodes?: any;
+    edges?: any;
     createdAt: Date;
     updatedAt: Date;
 };
@@ -269,8 +271,11 @@ export async function getRunsByWorkflow(workflowId: string): Promise<Run[]> {
 }
 
 export async function getRunDetail(id: string) {
+    const isShortHash = id.length === 8 && /^[a-f0-9]+$/i.test(id);
     const run = await db.query.run.findFirst({
-        where: eq(schema.run.id, id),
+        where: isShortHash 
+            ? like(schema.run.id, `${id}%`)
+            : eq(schema.run.id, id),
         with: {
             workflow: true,
             steps: {

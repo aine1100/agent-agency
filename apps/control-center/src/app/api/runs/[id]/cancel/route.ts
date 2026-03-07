@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { requireApiRole } from "@/lib/api-guards";
 import { db } from "@/lib/db";
 import * as schema from "@/lib/db/schema";
-import { eq, inArray, and } from "drizzle-orm";
+import { eq, inArray, and, like } from "drizzle-orm";
 
 type RouteParams = { params: Promise<{ id: string }> };
 
@@ -11,8 +11,11 @@ export async function POST(request: Request, { params }: RouteParams) {
   if (!auth.ok) return auth.response;
 
   const { id } = await params;
+  const isShortHash = id.length === 8 && /^[a-f0-9]+$/i.test(id);
   const run = await db.query.run.findFirst({
-    where: eq(schema.run.id, id),
+    where: isShortHash 
+      ? like(schema.run.id, `${id}%`)
+      : eq(schema.run.id, id),
     with: { steps: true },
   });
 
@@ -32,7 +35,7 @@ export async function POST(request: Request, { params }: RouteParams) {
         completedAt: new Date(),
         errorMessage: "Canceled by user.",
       })
-      .where(eq(schema.run.id, id));
+      .where(eq(schema.run.id, run.id)); // Use actual run.id
 
     await tx
       .update(schema.runStep)
@@ -43,14 +46,14 @@ export async function POST(request: Request, { params }: RouteParams) {
       })
       .where(
         and(
-          eq(schema.runStep.runId, id),
+          eq(schema.runStep.runId, run.id), // Use actual run.id
           inArray(schema.runStep.status, ["PENDING", "RUNNING"]),
         ),
       );
 
     await tx.insert(schema.runLog).values({
       id: crypto.randomUUID(),
-      runId: id,
+      runId: run.id, // Use actual run.id
       level: "warn",
       message: `Run canceled by ${auth.session.user.email}`,
     });

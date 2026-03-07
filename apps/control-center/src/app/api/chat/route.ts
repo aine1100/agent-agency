@@ -10,7 +10,7 @@ export async function POST(request: Request) {
     const auth = await requireApiSession(request);
     if (!auth.ok) return auth.response;
 
-    const { content, conversationId } = await request.json();
+    const { content, conversationId, workflowId } = await request.json();
 
     if (!content) {
         return NextResponse.json({ error: "Content is required" }, { status: 400 });
@@ -25,8 +25,14 @@ export async function POST(request: Request) {
             id: currentConversationId,
             userId: auth.session.user.id,
             title: content.slice(0, 40) + (content.length > 40 ? "..." : ""),
+            workflowId: workflowId || null,
             updatedAt: new Date(),
         });
+    } else if (workflowId) {
+        // Update workflow if switched mid-conversation
+        await db.update(schema.conversation)
+            .set({ workflowId })
+            .where(eq(schema.conversation.id, currentConversationId));
     }
 
     // Save user message
@@ -50,23 +56,30 @@ export async function POST(request: Request) {
         content: m.content,
     }));
 
-    // Get AI response (now with potential triggerRun)
-    const aiResponse = await getChatResponse(context);
+    // Get AI response (now with potential triggerRun and forced workflow)
+    const aiResponse = await getChatResponse(context, workflowId);
     let finalAiContent = aiResponse.content;
 
     // Execute run if triggered
+    let triggeredRunId: string | null = null;
     if (aiResponse.triggerRun) {
         try {
+            // Fetch workflow to get its default model/provider
+            const workflow = await db.query.workflow.findFirst({
+                where: eq(schema.workflow.id, aiResponse.triggerRun.workflowId)
+            });
+
             const run = await startRun({
                 objective: aiResponse.triggerRun.objective,
                 workflowId: aiResponse.triggerRun.workflowId,
-                provider: "OPENAI", // Default for Nexus-Micro
-                model: "gpt-4o-mini",
-                includeMarketing: true,
+                provider: workflow?.defaultProvider || "OPENAI",
+                model: workflow?.defaultModel || "gpt-4o-mini",
+                includeMarketing: workflow?.includeMarketing ?? true,
                 dryRun: false,
                 startedById: auth.session.user.id,
                 startedByRole: auth.session.user.role as any,
             });
+            triggeredRunId = run.id;
             finalAiContent += `\n\n[Nexus-Micro Orchestration Started: #${run.id.slice(0, 8)}]`;
         } catch (err) {
             console.error("Failed to trigger run from chat:", err);
@@ -91,6 +104,7 @@ export async function POST(request: Request) {
     return NextResponse.json({
         conversationId: currentConversationId,
         message: finalAiContent,
+        runId: triggeredRunId,
     });
 }
 

@@ -7,7 +7,8 @@ import {
   Filter, 
   ChevronDown, 
   ArrowRight,
-  Loader2
+  Loader2,
+  Zap
 } from "lucide-react";
 import Link from "next/link";
 import { cn } from "@/lib/utils";
@@ -21,6 +22,8 @@ type Workflow = {
   slug: string;
   description: string;
   active: boolean;
+  nodes?: any;
+  edges?: any;
 };
 
 export function WorkflowListClient({ initialWorkflows }: { initialWorkflows: Workflow[] }) {
@@ -118,7 +121,14 @@ export function WorkflowListClient({ initialWorkflows }: { initialWorkflows: Wor
                         <div className="flex items-center gap-2">
                           <span className="text-[9px] font-mono text-muted uppercase tracking-wider">slug: {workflow.slug}</span>
                           <span className="h-1 w-1 rounded-full bg-border" />
-                          <span className="text-[9px] font-bold text-brand-purple/60 uppercase">INTEGRATED</span>
+                          {workflow.nodes && Array.isArray(workflow.nodes) && workflow.nodes.length > 0 ? (
+                            <span className="text-[9px] font-bold text-brand-purple uppercase flex items-center gap-1">
+                              <Zap className="h-2.5 w-2.5 fill-current" />
+                              INTELLIGENCE GRAPH
+                            </span>
+                          ) : (
+                            <span className="text-[9px] font-bold text-brand-purple/60 uppercase">INTEGRATED</span>
+                          )}
                         </div>
                       </div>
                     </div>

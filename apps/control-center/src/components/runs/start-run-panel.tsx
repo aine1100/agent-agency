@@ -1,13 +1,24 @@
 "use client"
 import type * as schema from "@/lib/db/schema";
-import { Rocket, Sparkles, ChevronDown, Cpu, Zap, Info, AlertCircle } from "lucide-react";
+import { Rocket, Sparkles, ChevronDown, Cpu, Zap, Info, AlertCircle, Bot } from "lucide-react";
 import { useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { cn } from "@/lib/utils";
 
 import { CustomDropdown } from "@/components/ui/custom-dropdown";
 
-type Workflow = typeof schema.workflow.$inferSelect;
+type Workflow = {
+  id: string;
+  name: string;
+  slug: string;
+  description: string;
+  active: boolean;
+  defaultProvider: ProviderType;
+  defaultModel: string;
+  includeMarketing: boolean;
+  nodes?: any;
+  edges?: any;
+};
 type ProviderType = (typeof schema.providerTypeEnum.enumValues)[number];
 
 type StartRunPanelProps = {
@@ -165,11 +176,37 @@ export function StartRunPanel({ workflows, initialWorkflowId }: StartRunPanelPro
         </div>
 
         {selectedWorkflow && (
-          <div className="flex gap-3 rounded-2xl bg-brand-purple/5 p-4 border border-brand-purple/10">
-            <Info className="h-4 w-4 text-brand-purple shrink-0 mt-0.5" />
-            <p className="text-xs text-muted leading-relaxed">
-              {selectedWorkflow.description}
-            </p>
+          <div className="space-y-4">
+            <div className="flex gap-3 rounded-2xl bg-brand-purple/5 p-4 border border-brand-purple/10">
+              <Info className="h-4 w-4 text-brand-purple shrink-0 mt-0.5" />
+              <p className="text-xs text-muted leading-relaxed">
+                {selectedWorkflow.description}
+              </p>
+            </div>
+
+            {/* Visual Workflow Indicator - Show the 'new' visual design summary */}
+            {selectedWorkflow.nodes && Array.isArray(selectedWorkflow.nodes) && selectedWorkflow.nodes.length > 0 && (
+              <div className="rounded-2xl border border-border bg-background/50 p-4 animate-in fade-in slide-in-from-top-2 duration-500">
+                <div className="flex items-center justify-between mb-3">
+                  <div className="flex items-center gap-2 text-[10px] font-black uppercase tracking-[0.2em] text-brand-purple">
+                    <div className="h-1.5 w-1.5 rounded-full bg-brand-purple animate-pulse" />
+                    Custom Intelligence Graph
+                  </div>
+                  <span className="text-[9px] font-bold text-muted uppercase">{(selectedWorkflow.nodes as any[]).filter(n => n.type === 'agent').length} Specialists Active</span>
+                </div>
+                <div className="flex flex-wrap gap-2 pointer-events-none">
+                  {(selectedWorkflow.nodes as any[])
+                    .filter(n => n.type === 'agent')
+                    .map((node: any, idx: number) => (
+                      <div key={node.id} className="flex items-center gap-2 px-2.5 py-1.5 rounded-xl bg-card border border-border shadow-sm">
+                        <Bot className="h-3.5 w-3.5 text-brand-purple" />
+                        <span className="text-[10px] font-bold text-foreground/80">{node.data?.label || `Specialist ${idx + 1}`}</span>
+                      </div>
+                    ))
+                  }
+                </div>
+              </div>
+            )}
           </div>
         )}
 

@@ -1,0 +1,2 @@
+﻿index.html
+script.js

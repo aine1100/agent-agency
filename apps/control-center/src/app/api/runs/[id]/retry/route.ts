@@ -3,7 +3,7 @@ import { requireApiRole } from "@/lib/api-guards";
 import { db } from "@/lib/db";
 import * as schema from "@/lib/db/schema";
 import { startRun } from "@/lib/run-engine";
-import { eq } from "drizzle-orm";
+import { eq, like } from "drizzle-orm";
 
 type RouteParams = { params: Promise<{ id: string }> };
 
@@ -12,8 +12,11 @@ export async function POST(request: Request, { params }: RouteParams) {
   if (!auth.ok) return auth.response;
 
   const { id } = await params;
+  const isShortHash = id.length === 8 && /^[a-f0-9]+$/i.test(id);
   const previousRun = await db.query.run.findFirst({
-    where: eq(schema.run.id, id),
+    where: isShortHash 
+      ? like(schema.run.id, `${id}%`)
+      : eq(schema.run.id, id),
   });
 
   if (!previousRun) {

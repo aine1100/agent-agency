@@ -13,7 +13,7 @@ export type AIResponse = {
     };
 };
 
-export async function getChatResponse(messages: Message[]): Promise<AIResponse> {
+export async function getChatResponse(messages: Message[], forcedWorkflowId?: string): Promise<AIResponse> {
     const lastMessage = messages[messages.length - 1].content.toLowerCase();
     
     // Broaden run intent detection: if it looks like a task, run it.
@@ -21,14 +21,15 @@ export async function getChatResponse(messages: Message[]): Promise<AIResponse> 
     const isRunIntent = taskKeywords.some(kw => lastMessage.includes(kw)) && lastMessage.length > 5;
 
     if (isRunIntent) {
-        // Map to specialized workflows if keywords match, otherwise default to Market Analysis (wf_4)
-        // because wf_4 is a good general "nexus-micro" entry point.
-        let workflowId = "wf_4"; 
+        // Use forced workflow if provided, otherwise detect
+        let workflowId = forcedWorkflowId || "wf_4"; 
         
-        if (lastMessage.includes("lead") || lastMessage.includes("gen")) {
-            workflowId = "wf_1";
-        } else if (lastMessage.includes("seo") || lastMessage.includes("audit")) {
-            workflowId = "wf_4";
+        if (!forcedWorkflowId) {
+            if (lastMessage.includes("lead") || lastMessage.includes("gen")) {
+                workflowId = "wf_1";
+            } else if (lastMessage.includes("seo") || lastMessage.includes("audit")) {
+                workflowId = "wf_4";
+            }
         }
 
         return {
